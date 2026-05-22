@@ -45,6 +45,9 @@ jobs:
     - name: Lint install_hook.sh.template with ShellCheck
       run: shellcheck ctl_environment_template/install_hook.sh.template
 
+    - name: Validate color policy and alias role references
+      run: bash scripts/validate-color-system.sh
+
     - name: Dry Run: Install Core Module (Force Overwrite to Ensure Clean State)
       run: |
         echo "--- Running install.sh with --force for dry run ---"
@@ -113,6 +116,43 @@ jobs:
             echo "Error: dps alias not found."
             exit 1
           fi
+        )
+      env:
+        USER: github-actions
+
+    - name: Idempotency - repeated install must not duplicate shell loaders
+      run: |
+        echo "--- Running repeated install idempotency test ---"
+        (
+          export HOME="$(mktemp -d)"
+          echo "Temporary HOME for idempotency is: $HOME"
+
+          ./install.sh --force --backup
+          ./install.sh
+          ./install.sh
+
+          color_loader_count="$(grep -c 'source.*ctl_environment/colors.source.sh' "$HOME/.bashrc" || true)"
+          aliases_loader_count="$(grep -c '\. ~/.bash_aliases' "$HOME/.bashrc" || true)"
+
+          echo "Color loader count: $color_loader_count"
+          echo "Aliases loader count: $aliases_loader_count"
+
+          if [ "$color_loader_count" -ne 1 ]; then
+            echo "Expected exactly 1 color loader line, found $color_loader_count"
+            cat "$HOME/.bashrc"
+            exit 1
+          fi
+
+          if [ "$aliases_loader_count" -ne 1 ]; then
+            echo "Expected exactly 1 aliases loader line, found $aliases_loader_count"
+            cat "$HOME/.bashrc"
+            exit 1
+          fi
+
+          test -f "$HOME/ctl_environment/.version"
+          test -f "$HOME/ctl_environment/.aliases_version"
+
+          echo "Repeated install idempotency test passed."
         )
       env:
         USER: github-actions

@@ -71,12 +71,84 @@ alias dcb='docker compose build'
 alias di='docker images'
 alias dps='docker ps'
 alias dpsa='docker ps -a'
-alias drma='docker rm $(docker ps -aq)' # Remove all stopped containers
-alias drima='docker rmi $(docker images -q)' # Remove all images
-alias dclean='drma && drima' # Clean up containers and images
-alias dexec='docker exec -it' # Execute into a running container
-alias dlogs='docker logs -f' # Follow logs of a container
-alias dstopa='docker stop $(docker ps -aq)' # Stop all running containers
+alias dexec='docker exec -it'
+alias dlogs='docker logs -f'
+
+unalias drma drima dclean dstopa 2>/dev/null || true
+_docker_confirm() {
+    local prompt="$1"
+    local answer=""
+
+    read -r -p "$prompt [y/N] " answer
+    case "$answer" in
+        y|Y|yes|YES) return 0 ;;
+        *) echo "Cancelled."; return 1 ;;
+    esac
+}
+
+drma() {
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "docker is not installed or not on PATH."
+        return 127
+    fi
+
+    local ids=()
+    mapfile -t ids < <(docker ps -aq --filter status=exited --filter status=created)
+
+    if [ "${#ids[@]}" -eq 0 ]; then
+        echo "No stopped/created containers to remove."
+        return 0
+    fi
+
+    printf 'Stopped/created containers to remove: %s
+' "${#ids[@]}"
+    _docker_confirm "Remove all stopped/created containers?" || return 1
+    docker rm "${ids[@]}"
+}
+
+drima() {
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "docker is not installed or not on PATH."
+        return 127
+    fi
+
+    local ids=()
+    mapfile -t ids < <(docker images -q)
+
+    if [ "${#ids[@]}" -eq 0 ]; then
+        echo "No Docker images to remove."
+        return 0
+    fi
+
+    printf 'Images to remove: %s
+' "${#ids[@]}"
+    _docker_confirm "Remove all Docker images?" || return 1
+    docker rmi "${ids[@]}"
+}
+
+dstopa() {
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "docker is not installed or not on PATH."
+        return 127
+    fi
+
+    local ids=()
+    mapfile -t ids < <(docker ps -q)
+
+    if [ "${#ids[@]}" -eq 0 ]; then
+        echo "No running containers to stop."
+        return 0
+    fi
+
+    printf 'Running containers to stop: %s
+' "${#ids[@]}"
+    _docker_confirm "Stop all running containers?" || return 1
+    docker stop "${ids[@]}"
+}
+
+dclean() {
+    drma && drima
+}
 
 # -----------------------
 # System Monitoring
@@ -92,7 +164,7 @@ alias meminfo='free -h'
 # -----------------------
 
 alias colorreload='source $HOME/ctl_environment/colors.source.sh'
-alias colortest='color_apply warning "Warning test" && color_apply success "Success test" && color_apply error "Error test" && color_apply typescript "TS Test" && color_apply javascript "JS Test" && color_apply nodejs "Node Test"'
+alias colortest='color_apply warnings "Warning test" && color_apply success "Success test" && color_apply errors "Error test" && color_apply typescript "TS Test" && color_apply javascript "JS Test" && color_apply nodejs "Node Test"'
 alias colorroles='cat $HOME/.color_roles.json | jq ".[].role"'
 
 # -----------------------
