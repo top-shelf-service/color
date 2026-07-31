@@ -127,9 +127,19 @@ if $HAVE_YAML; then
 else
   t_skip "workflow YAML parses" "no pyyaml — see note at end"
 fi
-c_lint() { shellcheck -S warning install.sh uninstall.sh validate_color_roles.sh \
-    bash_aliases_template.sh ctl_environment_template/install_hook.sh.template \
-    ctl_environment_template/colors.source.sh.template; }
+# Must mirror the CI invocation exactly, including severity. Running -S warning
+# here while CI runs the default hid SC1091/SC2009/SC2015/SC2016 until CI failed.
+c_lint() {
+  local -a files
+  if git rev-parse --git-dir >/dev/null 2>&1; then
+    mapfile -t files < <(git ls-files '*.sh')
+  else
+    mapfile -t files < <(find . -name '*.sh' -not -path './.git/*' | sed 's|^\./||')
+  fi
+  shellcheck "${files[@]}" \
+    ctl_environment_template/install_hook.sh.template \
+    ctl_environment_template/colors.source.sh.template
+}
 if $HAVE_SHELLCHECK; then t "shellcheck clean repo-wide" c_lint
 else t_skip "shellcheck clean repo-wide" "shellcheck not installed"; fi
 c_json() {
@@ -209,12 +219,15 @@ t "unmanaged .bashrc lines preserved" c5
 
 # ---------------------------------------------------------------- contract --
 section "CONTRACT"
+# shellcheck disable=SC2016  # single quotes are deliberate: bash -c payload
 c6() { newhome; inst; rm -f "$H/ctl_environment" "$H/.color_roles.json"
        "${CLEAN[@]}" HOME="$H" bash -c 'unset COLOR_RUNTIME_HOME; . "$HOME/.local/share/tss/color/colors.source.sh"; [ "$COLOR_SYSTEM_READY" = 1 ] && get_color_by_role prompt >/dev/null'; }
 t "loader works with compat links DELETED" c6
+# shellcheck disable=SC2016  # single quotes are deliberate: bash -c payload
 c7() { newhome; inst; mv "$RT" "$H/moved"
        "${CLEAN[@]}" HOME="$H" bash -c 'unset COLOR_RUNTIME_HOME; . "$HOME/moved/colors.source.sh"; [ "$COLOR_SYSTEM_READY" = 1 ]'; }
 t "loader works from a relocated runtime" c7
+# shellcheck disable=SC2016  # single quotes are deliberate: bash -c payload
 c8() { newhome; inst
        local p; p=$(make_jqless_path)
        "${CLEAN[@]}" HOME="$H" PATH="$p" "$(command -v bash)" -c '
@@ -223,9 +236,11 @@ c8() { newhome; inst
          [ "$COLOR_SYSTEM_READY" = 1 ] && color_apply success ok >/dev/null'
        local rc=$?; rm -rf "$p"; return $rc; }
 t "shell start needs no jq (cache hit)" c8
+# shellcheck disable=SC2016  # single quotes are deliberate: bash -c payload
 c9() { newhome; inst; rm -rf "$RT/cache"
        "${CLEAN[@]}" HOME="$H" bash -c '. "$HOME/.local/share/tss/color/colors.source.sh"; [ "$COLOR_SYSTEM_READY" = 1 ]'; }
 t "cache is rebuilt if deleted" c9
+# shellcheck disable=SC2016  # single quotes are deliberate: bash -c payload
 c10() { newhome; inst; printf 'not json' > "$RT/color_roles.json"
         "${CLEAN[@]}" HOME="$H" bash -c '. "$HOME/.local/share/tss/color/colors.source.sh" 2>/dev/null; true'; }
 t "broken schema does not kill the shell" c10
@@ -253,6 +268,7 @@ t "20 generated colours all obey laws" c18
 c19() { newhome; inst; hook myapp deployment child >/dev/null 2>&1; inst
         [ "$(jq -r 'any(.[]; .role == "myapp")' "$RT/color_roles.json")" = true ]; }
 t "custom roles survive reinstall" c19
+# shellcheck disable=SC2016  # single quotes are deliberate: bash -c payload
 c20() { newhome; inst; hook myapp deployment child >/dev/null 2>&1
         "${CLEAN[@]}" HOME="$H" bash -c '. "$HOME/.local/share/tss/color/colors.source.sh"; get_color_by_role myapp >/dev/null'; }
 t "new role visible after reload" c20

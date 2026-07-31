@@ -127,7 +127,50 @@ extract() {
     fi
 }
 
-# Find and kill process by name
+# Find and kill processes by name.
+# Uses pgrep rather than parsing ps output: matching ps also matched the grep
+# itself, and the old substring match plus kill -9 meant "killp ssh" could take
+# down your own session with no chance to clean up.
+# Sends TERM by default; -9 forces SIGKILL. Matches are shown before signalling.
 killp() {
-    ps aux | grep "$1" | grep -v grep | awk '{print $2}' | xargs kill -9
+    local sig=TERM
+    if [ "$1" = "-9" ]; then
+        sig=KILL
+        shift
+    fi
+    if [ -z "$1" ]; then
+        echo "usage: killp [-9] <pattern>" >&2
+        return 2
+    fi
+
+    # pgrep -f matches whole command lines, so when the pattern is typed as an
+    # argument it also matches this shell and every ancestor that carries the
+    # invocation in its argv. Signalling those kills the caller. Walk the parent
+    # chain and exclude it.
+    local skip=" " p=$$
+    while [ -n "$p" ] && [ "$p" != "0" ] && [ "$p" != "1" ]; do
+        skip="$skip$p "
+        p=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')
+    done
+
+    local pid pids=""
+    for pid in $(pgrep -f -- "$1" 2>/dev/null); do
+        case "$skip" in *" $pid "*) continue ;; esac
+        pids="$pids $pid"
+    done
+    pids="${pids# }"
+
+    if [ -z "$pids" ]; then
+        echo "killp: no process matching: $1" >&2
+        return 1
+    fi
+
+    echo "killp: sending SIG$sig to pid(s): $pids" >&2
+    local killed=0
+    for pid in $pids; do
+        if kill "-$sig" "$pid" 2>/dev/null; then
+            killed=$((killed + 1))
+        fi
+    done
+    [ "$killed" -gt 0 ]
 }

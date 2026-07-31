@@ -21,7 +21,7 @@
 
 set -euo pipefail
 
-VERSION="3.1.0"
+VERSION="3.1.1"
 
 GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'; NC='\033[0m'
 info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
@@ -264,6 +264,7 @@ grep -Fq "$BEGIN_MARK" "$BASHRC" || { error "Managed block missing from .bashrc"
 
 # Prove the loader works standalone, with no symlink and no COLOR_RUNTIME_HOME.
 if ! ( unset COLOR_RUNTIME_HOME
+       # shellcheck source=/dev/null  # path is the chosen runtime dir, not fixed
        . "$RUNTIME_DIR/colors.source.sh" >/dev/null 2>&1
        [ "${COLOR_SYSTEM_READY:-0}" -eq 1 ] && get_color_by_role prompt >/dev/null ); then
   error "Loader self-test failed: runtime did not come up standalone."

@@ -199,7 +199,9 @@ build_candidate "$CHOSEN" "$CANDIDATE"
 # Authoritative check still goes through the engine, exactly once.
 if ! check_candidate "$CANDIDATE"; then
   echo "ERROR: candidate role violates color-laws.json:" >&2
-  [ -x "$VALIDATOR" ] && "$VALIDATOR" "$CANDIDATE" "$LAWS_PATH" >&2 || true
+  if [ -x "$VALIDATOR" ]; then
+    "$VALIDATOR" "$CANDIDATE" "$LAWS_PATH" >&2 || true
+  fi
   exit 1
 fi
 
