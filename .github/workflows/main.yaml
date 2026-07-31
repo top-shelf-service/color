@@ -160,6 +160,7 @@ jobs:
       - name: Smoke test inside the image
         run: |
           docker run --rm color-module-env bash -lc '
+            . "$HOME/.local/share/tss/color/colors.source.sh"
             [ "$COLOR_SYSTEM_READY" = 1 ] || exit 1
             color_apply success "container OK"
             color_validate'
