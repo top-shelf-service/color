@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # ~/.bash_aliases
 # Complete alias system for development workflow - Managed by install_aliases.sh
 
@@ -92,8 +93,8 @@ alias meminfo='free -h'
 # -----------------------
 
 alias colorreload='source $HOME/ctl_environment/colors.source.sh'
-alias colortest='color_apply warning "Warning test" && color_apply success "Success test" && color_apply error "Error test" && color_apply typescript "TS Test" && color_apply javascript "JS Test" && color_apply nodejs "Node Test"'
-alias colorroles='cat $HOME/.color_roles.json | jq ".[].role"'
+alias colortest='color_apply warnings "Warning test"; color_apply success "Success test"; color_apply errors "Error test"; color_apply typescript "TS Test"; color_apply javascript "JS Test"; color_apply nodejs "Node Test"'
+alias colorroles='color_roles'
 
 # -----------------------
 # Directory and Navigation Helpers
@@ -101,7 +102,7 @@ alias colorroles='cat $HOME/.color_roles.json | jq ".[].role"'
 
 # mkcd function - make directory and cd into it
 mkcd() {
-    mkdir -p "$1" && cd "$1"
+    mkdir -p "$1" && cd "$1" || return
 }
 
 # extract function - extract various archive formats

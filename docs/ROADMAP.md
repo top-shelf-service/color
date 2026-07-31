@@ -1,52 +1,44 @@
-# Color System Modernization Roadmap
+# Roadmap
 
-## Goal
-Evolve the repository from a single-user shell installer into a modular configuration runtime package with clear source/runtime separation, stronger validation, and reproducible machine bootstrap behavior.
+## Done (3.0.0)
 
-## Workstreams
+**Installer surface collapsed to one script.** `install.sh` absorbed
+runtime-dir handling, prompt selection, aliases and nano syntax. Six wrapper
+scripts were deleted; every one was a thin duplicate. Fewer entrypoints means
+fewer ways for them to disagree with each other, which is how the 2.x docs
+drifted from the code.
 
-### 1. Installer surface
-- Keep `install.sh` as the unified installer.
-- Preserve backward compatibility with wrapper entrypoints.
-- Add task-specific wrappers for core, aliases, prompt, nano, and runtime migration.
-- Keep all wrappers idempotent and safe to re-run.
+**Runtime separation is real, not cosmetic.** `colors.source.sh` derives
+`COLOR_RUNTIME_HOME` from its own path. The `~/ctl_environment` and
+`~/.color_roles.json` symlinks are conveniences; nothing resolves through them.
+Deleting both, or relocating the runtime, is covered by CI.
 
-### 2. Runtime separation
-- Keep the source repository wherever the user clones it.
-- Move deployed runtime assets into `~/.local/share/tss/color` by default.
-- Preserve `~/ctl_environment` as a compatibility symlink.
-- Export `COLOR_RUNTIME_HOME` for downstream tooling.
+**Policy is enforced.** `color-laws.json` is policy only — the duplicated
+role→hex map that let the two files drift is gone. `validate_color_roles.sh` is
+the single engine, called by `install.sh` and `install_hook.sh`. Installs fail
+closed on a violating schema; role registration validates before committing and
+rolls back on failure. CI asserts that every individual law rejects a crafted
+violation.
 
-### 3. Governance and validation
-- Add validation tooling for:
-  - duplicate roles
-  - duplicate hex values
-  - invalid hex strings
-  - forbidden pure white/pure black assignments
-  - missing required roles
-- Fail closed for invalid schema.
+**Code/data split.** Loader, hook and validator are refreshed on every install.
+`color_roles.json` and `.bash_aliases` are preserved unless `--force`. Roles you
+registered survive upgrades.
 
-### 4. Modular shell features
-- Treat aliases, prompt, nano syntax, and core runtime as separate install concerns.
-- Keep wrappers simple so machine bootstrap scripts can compose them.
+**Managed `.bashrc` block.** Sentinel-delimited and rewritten wholesale, so
+re-running never appends duplicates and uninstall never touches your own lines.
 
-### 5. Bootstrap orchestration
-- Add a high-level bootstrap script that installs the modern runtime layout.
-- Support forwarding installer flags to the unified installer.
-- Keep user-facing output explicit and operational.
+**No jq at shell start.** Roles compile once into `cache/roles.sh`;
+`color_apply` is a bash array lookup instead of two subprocesses per call.
 
-## Immediate Deliverables Added in This Phase
-- `install_runtime.sh`
-- `install_aliases.sh` compatibility wrapper
-- `install_core.sh`
-- `install_prompt.sh`
-- `install_nano.sh`
-- `bootstrap_color_env.sh`
-- `validate_color_roles.sh`
-- `docs/ROADMAP.md`
+**Soft failure.** A missing schema, absent jq or unwritable cache degrades to
+uncoloured output with one warning. Sourcing the loader cannot break a login
+shell.
 
-## Next Refactor Targets
-- Fold runtime-dir support directly into `install.sh`
-- Move prompt handling behind an explicit prompt module flag
-- Update `README.md` to match the actual installer surface
-- Teach `uninstall.sh` about the modern runtime location
+## Next
+
+- Contrast checking against a declared terminal background, not just absolute
+  luminance.
+- `color_apply` support for background and style attributes (bold, underline).
+- A `--dry-run` mode on `install.sh` that reports what would change.
+- Publish tagged releases; the 2.x watchdog/updater assumed a release archive
+  that was never produced.

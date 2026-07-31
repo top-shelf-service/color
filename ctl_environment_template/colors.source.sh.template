@@ -1,67 +1,173 @@
-#!/bin/bash
-# colors.source.sh - Runtime loader for color role schema
+# shellcheck shell=bash
+# colors.source.sh - runtime loader for the colour role schema
+#
+# CONTRACT
+#   This file is self-locating. It derives COLOR_RUNTIME_HOME from its own
+#   path, so the runtime works wherever it is deployed and does NOT depend on
+#   the ~/ctl_environment compatibility symlink existing. Delete the symlink
+#   and everything still works.
+#
+#   Resolution order for the runtime home:
+#     1. the directory this file was sourced from  (authoritative)
+#     2. $COLOR_RUNTIME_HOME                       (explicit override)
+#     3. ${XDG_DATA_HOME:-$HOME/.local/share}/tss/color
+#
+#   Roles are compiled once into cache/roles.sh — a flat list of bash
+#   assignments — so a normal shell start costs no jq forks at all, and
+#   color_apply() is a pure-bash array lookup rather than two subprocesses.
+#
+#   Failure is always soft. A missing schema, absent jq, or unwritable cache
+#   degrades to uncoloured output and a single warning. Sourcing this file
+#   must never break a login shell.
 
-COLOR_ROLE_SCHEMA_PATH="${COLOR_ROLE_SCHEMA_PATH:-$HOME/.color_roles.json}"
-
-if [ ! -f "$COLOR_ROLE_SCHEMA_PATH" ]; then
-  echo "[ERROR] color_roles.json not found at $COLOR_ROLE_SCHEMA_PATH"
-  return 1
+# ---------- locate the runtime ----------
+if [ -n "${BASH_SOURCE[0]:-}" ]; then
+  __color_self="${BASH_SOURCE[0]}"
+  # Resolve through symlinks so a link'd colors.source.sh still finds its runtime.
+  if command -v readlink >/dev/null 2>&1; then
+    __color_self="$(readlink -f "$__color_self" 2>/dev/null || echo "$__color_self")"
+  fi
+  __color_dir="$(cd -- "$(dirname -- "$__color_self")" 2>/dev/null && pwd)"
+  if [ -n "$__color_dir" ] && [ -f "$__color_dir/color_roles.json" ]; then
+    COLOR_RUNTIME_HOME="$__color_dir"
+  fi
+  unset __color_self __color_dir
 fi
+: "${COLOR_RUNTIME_HOME:=${XDG_DATA_HOME:-$HOME/.local/share}/tss/color}"
+export COLOR_RUNTIME_HOME
 
-if ! command -v jq &> /dev/null; then
-  echo "[ERROR] jq is required but not installed."
-  return 1
-fi
+COLOR_ROLE_SCHEMA_PATH="${COLOR_ROLE_SCHEMA_PATH:-$COLOR_RUNTIME_HOME/color_roles.json}"
+COLOR_LAWS_PATH="${COLOR_LAWS_PATH:-$COLOR_RUNTIME_HOME/laws/color/color-laws.json}"
+COLOR_CACHE_FILE="$COLOR_RUNTIME_HOME/cache/roles.sh"
+export COLOR_ROLE_SCHEMA_PATH COLOR_LAWS_PATH
 
-# Load roles into environment
-export COLOR_ROLE_MAP=$(cat "$COLOR_ROLE_SCHEMA_PATH" | jq -c '.')
+declare -gA COLOR_ROLE_HEX 2>/dev/null || declare -A COLOR_ROLE_HEX
+declare -gA COLOR_ROLE_ANSI 2>/dev/null || declare -A COLOR_ROLE_ANSI
+COLOR_SYSTEM_READY=0
 
-# Function to get color hex by role
-get_color_by_role() {
-  local role="$1"
-  echo "$COLOR_ROLE_MAP" | jq -r ".[] | select(.role==\"$role\") | .hex_value"
-}
+__color_warn() { [ -n "${COLOR_QUIET:-}" ] || printf '[color] %s\n' "$1" >&2; }
 
-# Enhanced hex to ANSI 24-bit color conversion
+# ---------- hex -> 24-bit ANSI ----------
 hex_to_ansi() {
-    local hex="$1"
-    # Remove # if present
-    hex="${hex#\#}"
-    
-    # Convert hex to RGB
-    local r=$((16#${hex:0:2}))
-    local g=$((16#${hex:2:2}))
-    local b=$((16#${hex:4:2}))
-    
-    # Return 24-bit color escape sequence (Foreground)
-    echo "\033[38;2;${r};${g};${b}m"
+  local hex="${1#\#}"
+  case "$hex" in
+    [0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]) ;;
+    *) return 1 ;;
+  esac
+  printf '\033[38;2;%d;%d;%dm' "$((16#${hex:0:2}))" "$((16#${hex:2:2}))" "$((16#${hex:4:2}))"
 }
 
-# Function to apply color to text
+# ---------- cache compilation ----------
+__color_compile_cache() {
+  command -v jq >/dev/null 2>&1 || return 1
+  local dir; dir="$(dirname "$COLOR_CACHE_FILE")"
+  mkdir -p "$dir" 2>/dev/null || return 1
+  local tmp; tmp="$(mktemp "$COLOR_CACHE_FILE.XXXXXX" 2>/dev/null)" || return 1
+  {
+    echo "# generated from $COLOR_ROLE_SCHEMA_PATH - do not edit"
+    jq -r '.[] | select(.role and .hex_value)
+           | "COLOR_ROLE_HEX[\(.role|@sh)]=\(.hex_value|@sh)"' \
+      "$COLOR_ROLE_SCHEMA_PATH" 2>/dev/null
+  } > "$tmp" || { rm -f "$tmp"; return 1; }
+  mv "$tmp" "$COLOR_CACHE_FILE" 2>/dev/null || { rm -f "$tmp"; return 1; }
+  return 0
+}
+
+__color_load() {
+  if [ ! -r "$COLOR_ROLE_SCHEMA_PATH" ]; then
+    __color_warn "schema not found at $COLOR_ROLE_SCHEMA_PATH — colours disabled"
+    return 1
+  fi
+  # Recompile only when the schema is newer than the cache.
+  if [ ! -r "$COLOR_CACHE_FILE" ] || [ "$COLOR_ROLE_SCHEMA_PATH" -nt "$COLOR_CACHE_FILE" ]; then
+    if ! __color_compile_cache; then
+      if [ ! -r "$COLOR_CACHE_FILE" ]; then
+        __color_warn "cannot compile role cache (is jq installed?) — colours disabled"
+        return 1
+      fi
+      __color_warn "using stale role cache; run 'color_reload' after installing jq"
+    fi
+  fi
+  # shellcheck source=/dev/null
+  . "$COLOR_CACHE_FILE" || return 1
+  local role
+  for role in "${!COLOR_ROLE_HEX[@]}"; do
+    COLOR_ROLE_ANSI["$role"]="$(hex_to_ansi "${COLOR_ROLE_HEX[$role]}" || true)"
+  done
+  COLOR_SYSTEM_READY=1
+  return 0
+}
+
+# ---------- public API ----------
+get_color_by_role() {
+  [ "$COLOR_SYSTEM_READY" -eq 1 ] || return 1
+  local hex="${COLOR_ROLE_HEX[$1]:-}"
+  [ -n "$hex" ] || return 1
+  printf '%s\n' "$hex"
+}
+
 color_apply() {
-  local role="$1"
-  shift
+  local role="$1"; shift
   local text="$*"
-  local color_hex=$(get_color_by_role "$role")
-  
-  if [ "$color_hex" != "null" ] && [ -n "$color_hex" ]; then
-    local ansi_color=$(hex_to_ansi "$color_hex")
-    echo -e "${ansi_color}${text}\033[0m" # Apply color and reset
+  local ansi="${COLOR_ROLE_ANSI[$role]:-}"
+  if [ "$COLOR_SYSTEM_READY" -eq 1 ] && [ -n "$ansi" ] && [ -t 1 ]; then
+    printf '%b%s\033[0m\n' "$ansi" "$text"
   else
-    echo "$text" # Return text uncolored if role not found
+    printf '%s\n' "$text"
   fi
 }
 
-# Export functions for use in shell
-export -f get_color_by_role
-export -f color_apply
-export -f hex_to_ansi # Export the new helper function
+color_roles() {
+  [ "$COLOR_SYSTEM_READY" -eq 1 ] || { echo "colour system not loaded" >&2; return 1; }
+  local role
+  for role in $(printf '%s\n' "${!COLOR_ROLE_HEX[@]}" | sort); do
+    printf '%-14s %s  ' "$role" "${COLOR_ROLE_HEX[$role]}"
+    color_apply "$role" "sample"
+  done
+}
 
-# Set colored prompt using the new color_apply function
-PROMPT_COLOR_HEX=$(get_color_by_role prompt)
-if [ "$PROMPT_COLOR_HEX" != "null" ] && [ -n "$PROMPT_COLOR_HEX" ]; then
-    # Use direct ANSI escape for PS1, as color_apply outputs the text with color
-    # and we just need the escape sequence for the prompt.
-    PROMPT_ANSI_COLOR=$(hex_to_ansi "$PROMPT_COLOR_HEX")
-    export PS1="\[${PROMPT_ANSI_COLOR}\]\u@\h:\w\$ \[\e[0m\]"
+color_reload() { rm -f "$COLOR_CACHE_FILE"; __color_load; }
+
+# Prints everything needed to diagnose a "wrong file" or "not loading" problem
+# in one shot, so a bug report never needs a second round trip.
+color_doctor() {
+  echo "runtime home   : $COLOR_RUNTIME_HOME"
+  echo "schema         : $COLOR_ROLE_SCHEMA_PATH"
+  echo "  exists       : $([ -r "$COLOR_ROLE_SCHEMA_PATH" ] && echo yes || echo NO)"
+  echo "  roles        : $(command -v jq >/dev/null && jq length "$COLOR_ROLE_SCHEMA_PATH" 2>/dev/null || echo '?')"
+  echo "laws           : $COLOR_LAWS_PATH"
+  echo "  exists       : $([ -r "$COLOR_LAWS_PATH" ] && echo yes || echo NO)"
+  echo "cache          : $COLOR_CACHE_FILE"
+  echo "  exists       : $([ -r "$COLOR_CACHE_FILE" ] && echo yes || echo NO)"
+  echo "loaded         : $COLOR_SYSTEM_READY  (${#COLOR_ROLE_HEX[@]} roles in memory)"
+  echo "jq             : $(command -v jq || echo 'NOT FOUND') $(jq --version 2>/dev/null)"
+  echo "bash           : $BASH_VERSION"
+  echo "COLOR_* in env :"
+  env | grep -i '^COLOR' | sed 's/^/  /' || echo "  (none)"
+}
+
+# Enforcement is delegated to the single engine, never reimplemented here.
+color_validate() {
+  local v="$COLOR_RUNTIME_HOME/validate_color_roles.sh"
+  if [ -x "$v" ]; then
+    "$v" "$@" "$COLOR_ROLE_SCHEMA_PATH" "$COLOR_LAWS_PATH"
+  else
+    echo "validator not installed at $v" >&2
+    return 1
+  fi
+}
+
+__color_load || true
+
+# ---------- prompt ----------
+if [ -z "${COLOR_PROMPT_DISABLE:-}" ] && [ "$COLOR_SYSTEM_READY" -eq 1 ]; then
+  case "$-" in
+    *i*)
+      __color_prompt_ansi="${COLOR_ROLE_ANSI[prompt]:-}"
+      if [ -n "$__color_prompt_ansi" ]; then
+        PS1="\[${__color_prompt_ansi}\]\u@\h:\w\$\[\033[0m\] "
+      fi
+      unset __color_prompt_ansi
+      ;;
+  esac
 fi

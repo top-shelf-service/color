@@ -1,33 +1,27 @@
-# Use a standard Ubuntu image as the base
-FROM ubuntu:latest
+# Pinned digest-free but version-locked: ubuntu:latest made builds
+# non-reproducible and silently changed the base out from under CI.
+FROM ubuntu:24.04
 
-# Set environment variables to prevent interactive prompts during build
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies: git, jq for the scripts, and shellcheck for linting
+# nano is installed because the TS/TSX syntax files are a shipped feature;
+# the previous image installed the syntax but not the editor that reads it.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    git \
-    jq \
-    shellcheck \
+      ca-certificates \
+      git \
+      jq \
+      nano \
+      shellcheck \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user for security
 RUN useradd -m -s /bin/bash user
-
-# Set the working directory for the user
 WORKDIR /home/user
-
-# FIX: Copy the repository files AND set the owner to the 'user' at the same time.
 COPY --chown=user:user . .
-
-# Now, switch to the non-root user.
 USER user
 
-# Run the installer script as the user, who now owns the files and can modify them.
-RUN chmod +x install.sh uninstall.sh && \
+RUN chmod +x install.sh uninstall.sh validate_color_roles.sh && \
     ./install.sh
 
-# Set the default command to start a login shell.
-# The "-l" flag is crucial as it ensures .bashrc is sourced, activating your colors and aliases.
+# -l so .bashrc is sourced and the colour system is live.
 CMD ["/bin/bash", "-l"]

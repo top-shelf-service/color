@@ -1,40 +1,225 @@
-#!/bin/bash
-# install_hook.sh - Auto-register a new app into color_roles.json
+#!/usr/bin/env bash
+# install_hook.sh - register a new application role in color_roles.json
+#
+# Every write is validated against color-laws.json BEFORE it is committed.
+# The candidate schema is built in a temp file, handed to the single
+# enforcement engine (validate_color_roles.sh), and only moved into place if
+# policy passes. A rejected write leaves the live schema byte-identical.
 
-ROLE_NAME="$1"
-CATEGORY="$2"
-HIERARCHY="$3"
+set -euo pipefail
 
-if [[ -z "$ROLE_NAME" || -z "$CATEGORY" || -z "$HIERARCHY" ]]; then
-  echo "Usage: $0 <role_name> <category> <hierarchy>"
-  echo "Example: $0 nginx infrastructure parent"
-  exit 1
-fi
+usage() {
+  cat <<USAGE
+Usage: $0 <role_name> <category> <hierarchy> [--hex "#RRGGBB"] [--replace]
 
-SCHEMA_PATH="${COLOR_ROLE_SCHEMA_PATH:-$HOME/.color_roles.json}"
+Registers a role and assigns it a policy-compliant colour. If --hex is given
+it must itself satisfy color-laws.json, otherwise a compliant colour is
+generated automatically. --replace overwrites a role that already exists.
 
-if [ ! -f "$SCHEMA_PATH" ]; then
-  echo "ERROR: color_roles.json not found at $SCHEMA_PATH"
-  exit 1
-fi
+Example: $0 nginx infrastructure parent
+USAGE
+}
 
-# Check if role already exists
-if jq -e ".[] | select(.role==\"$ROLE_NAME\")" "$SCHEMA_PATH" > /dev/null; then
-  echo "Role '$ROLE_NAME' already exists. Use a different name or remove the existing role first."
-  exit 1
-fi
-
-# Generate a safe color (avoiding pure white/black)
-while true; do
-  HEX_COLOR=$(printf "#%06x" $((RANDOM*RANDOM % 0xDDDDDD + 0x111111))) # Ensures color is not too dark or too bright
-  if [[ "$HEX_COLOR" != "#FFFFFF" && "$HEX_COLOR" != "#000000" ]]; then
-    break
-  fi
+ROLE_NAME=""; CATEGORY=""; HIERARCHY=""; WANT_HEX=""
+REPLACE=false
+POSITIONAL=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --hex) [ $# -ge 2 ] || { echo "--hex requires a value" >&2; exit 2; }; WANT_HEX="$2"; shift 2 ;;
+    --replace) REPLACE=true; shift ;;
+    -h|--help) usage; exit 0 ;;
+    -*) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+    *) POSITIONAL+=("$1"); shift ;;
+  esac
 done
+set -- "${POSITIONAL[@]+"${POSITIONAL[@]}"}"
+ROLE_NAME="${1:-}"; CATEGORY="${2:-}"; HIERARCHY="${3:-}"
 
-COLOR_CODE="COLOR_$(echo "$ROLE_NAME" | tr '[:lower:]' '[:upper:]' | tr -d '.-')_$(od -vAn -N2 -tu4 < /dev/urandom | tr -d ' ')"
+if [ -z "$ROLE_NAME" ] || [ -z "$CATEGORY" ] || [ -z "$HIERARCHY" ]; then
+  usage >&2; exit 2
+fi
 
-# Add new role to schema
-jq ". + [{\"role\": \"$ROLE_NAME\", \"category\": \"$CATEGORY\", \"color_code\": \"$COLOR_CODE\", \"hex_value\": \"$HEX_COLOR\", \"hierarchy\": \"$HIERARCHY\", \"source_type\": \"dynamic\", \"app_linked\": \"$ROLE_NAME\", \"install_hook\": \"hook_${ROLE_NAME}_installed\"}]" "$SCHEMA_PATH" > "${SCHEMA_PATH}.tmp" && mv "${SCHEMA_PATH}.tmp" "$SCHEMA_PATH"
+command -v jq >/dev/null 2>&1 || { echo "ERROR: jq is required." >&2; exit 2; }
 
-echo "✅ Role '$ROLE_NAME' registered successfully with color $HEX_COLOR"
+SELF_DIR="$(cd -- "$(dirname -- "$(readlink -f "$0")")" && pwd)"
+RUNTIME_HOME="${COLOR_RUNTIME_HOME:-$SELF_DIR}"
+SCHEMA_PATH="${COLOR_ROLE_SCHEMA_PATH:-$RUNTIME_HOME/color_roles.json}"
+if [ -n "${COLOR_ROLE_SCHEMA_PATH:-}" ] && [ "$COLOR_ROLE_SCHEMA_PATH" != "$RUNTIME_HOME/color_roles.json" ]; then
+  echo "NOTE: using COLOR_ROLE_SCHEMA_PATH=$COLOR_ROLE_SCHEMA_PATH" >&2
+  echo "      rather than this runtime's $RUNTIME_HOME/color_roles.json" >&2
+fi
+LAWS_PATH="${COLOR_LAWS_PATH:-$RUNTIME_HOME/laws/color/color-laws.json}"
+VALIDATOR="$RUNTIME_HOME/validate_color_roles.sh"
+
+[ -e "$SCHEMA_PATH" ] || { echo "ERROR: schema not found at $SCHEMA_PATH" >&2; exit 2; }
+# Resolve symlinks so the atomic replace never converts a link into a file.
+SCHEMA_PATH="$(readlink -f "$SCHEMA_PATH")"
+
+jq empty "$SCHEMA_PATH" >/dev/null 2>&1 || { echo "ERROR: $SCHEMA_PATH is not valid JSON. Refusing to write." >&2; exit 1; }
+
+if [ "$(jq -r --arg r "$ROLE_NAME" 'any(.[]; .role == $r)' "$SCHEMA_PATH")" = "true" ]; then
+  if $REPLACE; then
+    echo "Replacing existing role '$ROLE_NAME'."
+  else
+    echo "ERROR: role '$ROLE_NAME' already exists." >&2
+    echo "  schema:   $SCHEMA_PATH" >&2
+    echo "  existing: $(jq -c --arg r "$ROLE_NAME" 'map(select(.role == $r))[0]' "$SCHEMA_PATH")" >&2
+    echo "  If that is not the schema you expected, check COLOR_ROLE_SCHEMA_PATH" >&2
+    echo "  and COLOR_RUNTIME_HOME in your environment:" >&2
+    env | grep -i '^COLOR' | sed 's/^/    /' >&2 || echo "    (no COLOR_* variables set)" >&2
+    echo "  Use --replace to overwrite it." >&2
+    exit 1
+  fi
+fi
+
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+
+# Pull the colour policy from the engine ONCE. Rules still live in
+# color-laws.json; only their extraction happens here. Testing candidates
+# locally instead of forking the validator per attempt is the difference
+# between one subprocess and two hundred.
+CONSTRAINTS="$WORK/laws.env"
+if [ -x "$VALIDATOR" ] && "$VALIDATOR" --emit-constraints "$SCHEMA_PATH" "$LAWS_PATH" > "$CONSTRAINTS" 2>/dev/null; then
+  # shellcheck source=/dev/null
+  . "$CONSTRAINTS"
+else
+  # shellcheck disable=SC2034  # set for parity with --emit-constraints output
+  COLOR_LAW_HEX_PATTERN='^#[0-9A-Fa-f]{6}$'
+  COLOR_LAW_FORBID_WHITE='#FFFFFF'; COLOR_LAW_FORBID_BLACK='#000000'
+  COLOR_LAW_LUM_MIN=24; COLOR_LAW_LUM_MAX=247; COLOR_LAW_LUM_ENABLED=true
+  COLOR_LAW_HIERARCHIES='parent child cousin alert feedback language runtime'
+  COLOR_LAW_CONTRAST_ENABLED=false
+fi
+
+# ---- pre-flight -----------------------------------------------------------
+# Reject non-colour problems BEFORE generating anything. Previously an invalid
+# hierarchy sent the generator through its full retry budget, failing every
+# time for a reason no new colour could ever fix.
+if [ -n "${COLOR_LAW_HIERARCHIES// /}" ]; then
+  case " $COLOR_LAW_HIERARCHIES " in
+    *" $HIERARCHY "*) ;;
+    *)
+      echo "ERROR: hierarchy '$HIERARCHY' is not in the allowed vocabulary." >&2
+      echo "  allowed: $COLOR_LAW_HIERARCHIES" >&2
+      echo "  laws:    $LAWS_PATH" >&2
+      exit 1 ;;
+  esac
+fi
+if [ -z "$CATEGORY" ]; then
+  echo "ERROR: category must not be empty." >&2
+  exit 1
+fi
+
+# ---- colour predicate, evaluated in-process -------------------------------
+hex_ok() {
+  local hex="$1" up r g b lum
+  up="$(printf '%s' "$hex" | tr '[:lower:]' '[:upper:]')"
+  case "$up" in
+    "#"[0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F]) ;;
+    *) return 1 ;;
+  esac
+  [ -n "$COLOR_LAW_FORBID_WHITE" ] && [ "$up" = "$(printf '%s' "$COLOR_LAW_FORBID_WHITE" | tr '[:lower:]' '[:upper:]')" ] && return 1
+  [ -n "$COLOR_LAW_FORBID_BLACK" ] && [ "$up" = "$(printf '%s' "$COLOR_LAW_FORBID_BLACK" | tr '[:lower:]' '[:upper:]')" ] && return 1
+  r=$((16#${up:1:2})); g=$((16#${up:3:2})); b=$((16#${up:5:2}))
+
+  if [ "${COLOR_LAW_LUM_ENABLED:-true}" = true ]; then
+    # 0.2126 R + 0.7152 G + 0.0722 B, scaled to stay in integer arithmetic
+    lum=$(( (2126 * r + 7152 * g + 722 * b) / 10000 ))
+    [ "$lum" -lt "${COLOR_LAW_LUM_MIN:-24}" ] && return 1
+    [ "$lum" -gt "${COLOR_LAW_LUM_MAX:-247}" ] && return 1
+  fi
+
+  # WCAG contrast against the declared background. The engine hands us the
+  # minimum relative luminance and the exact sRGB linearisation table, so this
+  # is reproduced with integer maths and no subprocess per candidate.
+  if [ "${COLOR_LAW_CONTRAST_ENABLED:-false}" = true ] && [ "${#COLOR_LAW_SRGB_LIN[@]}" -eq 256 ]; then
+    local rellum
+    rellum=$(( (2126 * COLOR_LAW_SRGB_LIN[r]
+              + 7152 * COLOR_LAW_SRGB_LIN[g]
+              + 722  * COLOR_LAW_SRGB_LIN[b]) / 10000 ))
+    [ "$rellum" -lt "${COLOR_LAW_MIN_RELLUM_1E6:-0}" ] && return 1
+  fi
+  return 0
+}
+
+# Authoritative verdict. Delegated to the single engine; no rules here.
+check_candidate() {
+  if [ -x "$VALIDATOR" ]; then
+    "$VALIDATOR" --quiet "$1" "$LAWS_PATH" >/dev/null 2>&1
+  else
+    local h
+    h="$(jq -r --arg r "$ROLE_NAME" 'map(select(.role == $r))[0].hex_value' "$1")"
+    hex_ok "$h"
+  fi
+}
+
+build_candidate() {  # build_candidate <hex> <outfile>
+  jq --arg role "$ROLE_NAME" --arg category "$CATEGORY" \
+     --arg hex "$1" --arg hierarchy "$HIERARCHY" \
+     --arg code "COLOR_$(echo "$ROLE_NAME" | tr '[:lower:]' '[:upper:]' | tr -cd '[:alnum:]_')" '
+     map(select(.role != $role)) + [{
+       role: $role, category: $category, color_code: $code,
+       hex_value: $hex, hierarchy: $hierarchy, source_type: "dynamic",
+       app_linked: $role, install_hook: ("hook_" + $role + "_installed")
+     }]' "$SCHEMA_PATH" > "$2"
+}
+
+CANDIDATE="$WORK/candidate.json"
+CHOSEN=""
+
+if [ -n "$WANT_HEX" ]; then
+  if hex_ok "$WANT_HEX"; then
+    CHOSEN="$WANT_HEX"
+  else
+    echo "ERROR: colour $WANT_HEX violates color-laws.json." >&2
+    if [ "${COLOR_LAW_CONTRAST_ENABLED:-false}" = true ]; then
+    echo "  needs at least ${COLOR_LAW_CONTRAST_MIN:-4.5}:1 contrast against ${COLOR_LAW_CONTRAST_BG:-#1E1E1E}." >&2
+  fi
+  echo "  luminance must be ${COLOR_LAW_LUM_MIN:-24}-${COLOR_LAW_LUM_MAX:-247}; pure white and black are forbidden." >&2
+    echo "  laws: $LAWS_PATH" >&2
+    exit 1
+  fi
+else
+  # A compliant colour is found in one or two tries; the budget only guards
+  # against a pathologically narrow policy.
+  for _ in $(seq 1 64); do
+    candidate_hex=$(printf "#%02X%02X%02X" $((RANDOM % 256)) $((RANDOM % 256)) $((RANDOM % 256)))
+    if hex_ok "$candidate_hex"; then CHOSEN="$candidate_hex"; break; fi
+  done
+  if [ -z "$CHOSEN" ]; then
+    echo "ERROR: no colour satisfying the policy found in 64 attempts." >&2
+    echo "  luminance band ${COLOR_LAW_LUM_MIN:-24}-${COLOR_LAW_LUM_MAX:-247} may be too narrow." >&2
+    exit 1
+  fi
+fi
+
+build_candidate "$CHOSEN" "$CANDIDATE"
+
+# Authoritative check still goes through the engine, exactly once.
+if ! check_candidate "$CANDIDATE"; then
+  echo "ERROR: candidate role violates color-laws.json:" >&2
+  [ -x "$VALIDATOR" ] && "$VALIDATOR" "$CANDIDATE" "$LAWS_PATH" >&2 || true
+  exit 1
+fi
+
+# Commit atomically, then re-validate the live file. Roll back on failure.
+BACKUP="$WORK/rollback.json"
+cp "$SCHEMA_PATH" "$BACKUP"
+TMP="$(mktemp "${SCHEMA_PATH}.XXXXXX")"
+cat "$CANDIDATE" > "$TMP"
+mv "$TMP" "$SCHEMA_PATH"
+
+if ! check_candidate "$SCHEMA_PATH"; then
+  cp "$BACKUP" "$SCHEMA_PATH"
+  echo "ERROR: post-write validation failed. Schema rolled back, no changes made." >&2
+  exit 1
+fi
+
+if $REPLACE; then
+  echo "Role '$ROLE_NAME' updated with colour $CHOSEN"
+else
+  echo "Role '$ROLE_NAME' registered with colour $CHOSEN"
+fi
+echo "Schema: $SCHEMA_PATH"
+echo "Run 'color_reload' (or open a new shell) to pick it up."

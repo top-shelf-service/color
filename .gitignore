@@ -1,8 +1,11 @@
 # Ignore generated files and backups that live outside the repo
 /ctl_environment/
+# Compiled role cache (generated at runtime)
+cache/roles.sh
 .color_roles.json
 .bash_aliases
-.bashrc # Do not track .bashrc in git, only modify it
+# Do not track .bashrc in git, only modify it
+.bashrc
 
 # Backup files
 *.backup.*

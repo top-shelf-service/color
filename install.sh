@@ -1,340 +1,278 @@
-#!/bin/bash
-# ========================================
-# install.sh
-# Unified Color Module & Aliases Installer (+ nano TS/TSX syntax)
-# ========================================
+#!/usr/bin/env bash
+# ============================================================================
+# install.sh - the installer for the colour role system
+#
+# This is the only installer. Runtime-dir handling, aliases, nano syntax and
+# prompt setup are all flags here rather than separate wrapper scripts.
+#
+# DESIGN
+#   Code vs data. colors.source.sh, install_hook.sh and validate_color_roles.sh
+#   are CODE: always refreshed to the shipped version. color_roles.json and
+#   .bash_aliases are DATA: created if absent, preserved otherwise, and only
+#   replaced under --force. That split is what makes re-running safe.
+#
+#   Self-healing. Missing files, broken symlinks and a half-migrated legacy
+#   layout are repaired on every run. Running this twice, or after something
+#   deleted half the runtime, converges to the same working state.
+#
+#   Fail closed. The installed schema is validated against color-laws.json
+#   before the run is declared successful.
+# ============================================================================
 
 set -euo pipefail
 
-# ---------- VERSION ----------
-CORE_VERSION="2.0.5"   # bump for TSX support
-ALIASES_VERSION="2.0.4"
-CORE_VERSION_FILE="$HOME/ctl_environment/.version"
-ALIASES_VERSION_FILE="$HOME/ctl_environment/.aliases_version"
+VERSION="3.1.0"
 
-# ---------- COLORS ----------
 GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'; NC='\033[0m'
-
-# ---------- PATHS ----------
-BASE_DIR="$HOME/ctl_environment"
-DOCS_DIR="$BASE_DIR/docs"
-LAWS_DIR="$BASE_DIR/laws/color"
-BASHRC="$HOME/.bashrc"
-BASH_ALIASES_FILE="$HOME/.bash_aliases"
-SYMLINK="$HOME/.color_roles.json"
-
-# Nano-related
-NANO_DIR="$HOME/.nano"
-NANORC="$HOME/.nanorc"
-TS_NANORC_TARGET="$NANO_DIR/typescript.nanorc"
-TSX_NANORC_TARGET="$NANO_DIR/tsx.nanorc"
-
-# Source paths for template files in the repository
-REPO_ROOT="$(dirname "$(readlink -f "$0")")"
-COLOR_ROLES_TEMPLATE="$REPO_ROOT/ctl_environment_template/color_roles.json.template"
-COLOR_LAWS_TEMPLATE="$REPO_ROOT/ctl_environment_template/laws/color/color-laws.json.template"
-COLORS_SOURCE_TEMPLATE="$REPO_ROOT/ctl_environment_template/colors.source.sh.template"
-INSTALL_HOOK_TEMPLATE="$REPO_ROOT/ctl_environment_template/install_hook.sh.template"
-BASH_ALIASES_TEMPLATE="$REPO_ROOT/bash_aliases_template.sh"
-TS_NANORC_TEMPLATE="$REPO_ROOT/ctl_environment_template/nano/typescript.nanorc.template"
-TSX_NANORC_TEMPLATE="$REPO_ROOT/ctl_environment_template/nano/tsx.nanorc.template"
-
-# ---------- GLOBAL FLAGS ----------
-FORCE_OVERWRITE=false
-BACKUP_FILES=false
-SKIP_ALIASES=false
-SKIP_NANO=false
-
-# ---------- HELPERS ----------
 info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
 success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 warn()    { echo -e "${YELLOW}[WARN]${NC} $1" >&2; }
 error()   { echo -e "${RED}[ERROR]${NC} $1" >&2; }
 
-backup_existing_file() {
-    local file_to_backup="$1"
-    if [ -f "$file_to_backup" ]; then
-        local backup_path="${file_to_backup}.backup.$(date +%Y%m%d_%H%M%S)"
-        cp "$file_to_backup" "$backup_path"
-        info "Backed up existing file to: $backup_path"
-    fi
-}
+REPO_ROOT="$(cd -- "$(dirname -- "$(readlink -f "$0")")" && pwd)"
+TEMPLATE_DIR="$REPO_ROOT/ctl_environment_template"
 
-copy_template_file() {
-    local template_path="$1"; local target_path="$2"; local filename
-    filename=$(basename "$target_path")
-    info "Processing $filename..."
-    if [ ! -f "$template_path" ]; then
-        error "Template file not found: $template_path"; exit 1
-    fi
-    if [ -f "$target_path" ]; then
-        if $FORCE_OVERWRITE; then
-            $BACKUP_FILES && backup_existing_file "$target_path"
-            warn "Overwriting existing $filename due to --force flag."
-            cp "$template_path" "$target_path"
-            success "$filename overwritten."
-        else
-            warn "$filename already exists. Skipping. Use --force to overwrite."
-        fi
-    else
-        cp "$template_path" "$target_path"
-        success "$filename created."
-    fi
-}
+DEFAULT_RUNTIME="${XDG_DATA_HOME:-$HOME/.local/share}/tss/color"
+RUNTIME_DIR="${COLOR_RUNTIME_HOME:-$DEFAULT_RUNTIME}"
+LEGACY_DIR="$HOME/ctl_environment"
+LEGACY_SYMLINK="$HOME/.color_roles.json"
+BASHRC="$HOME/.bashrc"
+BASH_ALIASES_FILE="$HOME/.bash_aliases"
+NANO_DIR="$HOME/.nano"
+NANORC="$HOME/.nanorc"
 
-ensure_line_in_file() {
-    # ensure_line_in_file <file> <fixed-string-to-search> <line-to-append>
-    local file="$1"; local needle="$2"; local line="$3"
-    touch "$file"
-    if ! grep -Fq "$needle" "$file"; then
-        echo "$line" >> "$file"
-        success "Updated $(basename "$file") with: $needle"
-    else
-        info "$(basename "$file") already contains: $needle"
-    fi
-}
+BEGIN_MARK="# >>> color role system >>>"
+END_MARK="# <<< color role system <<<"
 
-# ---------- STEPS ----------
-check_dependencies() {
-    info "Checking dependencies..."
-    if ! command -v jq >/dev/null 2>&1; then
-        error "jq is required but not installed. Install with: sudo apt-get install -y jq"; exit 1
-    fi
-    if ! command -v nano >/dev/null 2>&1; then
-        warn "nano not found. Nano syntax step will still install files, but nano is recommended."
-    fi
-    success "Dependencies verified."
-}
-
-install_core_module() {
-    info "--- Installing Core Color Module ---"
-
-    local installed_version=""
-    if [ -f "$CORE_VERSION_FILE" ]; then
-        installed_version=$(cat "$CORE_VERSION_FILE" || true)
-        if [ "$installed_version" = "$CORE_VERSION" ] && ! $FORCE_OVERWRITE; then
-            info "Core module version $CORE_VERSION already installed. Skipping."
-        else
-            info "Updating core module from v${installed_version:-none} to v$CORE_VERSION."
-        fi
-    fi
-
-    mkdir -p "$DOCS_DIR" "$LAWS_DIR"
-
-    copy_template_file "$COLOR_ROLES_TEMPLATE" "$BASE_DIR/color_roles.json"
-    copy_template_file "$COLOR_LAWS_TEMPLATE" "$LAWS_DIR/color-laws.json"
-    copy_template_file "$COLORS_SOURCE_TEMPLATE" "$BASE_DIR/colors.source.sh"
-    copy_template_file "$INSTALL_HOOK_TEMPLATE" "$BASE_DIR/install_hook.sh"
-    chmod +x "$BASE_DIR/colors.source.sh" "$BASE_DIR/install_hook.sh"
-
-    info "Creating symlink ~/.color_roles.json..."
-    ln -sf "$BASE_DIR/color_roles.json" "$SYMLINK"
-
-    info "Updating .bashrc for color system..."
-    touch "$BASHRC"
-    if ! grep -q "source.*ctl_environment/colors.source.sh" "$BASHRC"; then
-        {
-          echo ""
-          echo "# Color Role System"
-          echo "source \$HOME/ctl_environment/colors.source.sh"
-        } >> "$BASHRC"
-        success "Color system loader added to .bashrc."
-    else
-        info "Color system loader already in .bashrc."
-    fi
-
-    echo "$CORE_VERSION" > "$CORE_VERSION_FILE"
-    success "Core module installation complete. Version: $CORE_VERSION"
-}
-
-install_aliases() {
-    $SKIP_ALIASES && { info "--- Skipping Aliases Installation ---"; return; }
-    info "--- Installing Bash Aliases ---"
-
-    local installed_version=""
-    if [ -f "$ALIASES_VERSION_FILE" ]; then
-        installed_version=$(cat "$ALIASES_VERSION_FILE" || true)
-        if [ "$installed_version" = "$ALIASES_VERSION" ] && ! $FORCE_OVERWRITE; then
-            info "Aliases version $ALIASES_VERSION already installed. Skipping."
-            echo "$ALIASES_VERSION" > "$ALIASES_VERSION_FILE"
-            return
-        else
-            info "Updating aliases from v${installed_version:-none} to v$ALIASES_VERSION."
-        fi
-    fi
-
-    copy_template_file "$BASH_ALIASES_TEMPLATE" "$BASH_ALIASES_FILE"
-
-    info "Updating .bashrc for aliases..."
-    touch "$BASHRC"
-    if ! grep -Fq ". ~/.bash_aliases" "$BASHRC"; then
-        {
-          echo ""
-          echo "# Load custom aliases"
-          echo "if [ -f ~/.bash_aliases ]; then"
-          echo "    . ~/.bash_aliases"
-          echo "fi"
-        } >> "$BASHRC"
-        success "Aliases loader added to .bashrc."
-    else
-        info "Aliases loader already in .bashrc."
-    fi
-
-    echo "$ALIASES_VERSION" > "$ALIASES_VERSION_FILE"
-    success "Aliases installation complete. Version: $ALIASES_VERSION"
-}
-
-install_nano_typescript_syntax() {
-    $SKIP_NANO && { info "--- Skipping nano TypeScript/TSX syntax install ---"; return; }
-    info "--- Installing nano TypeScript/TSX syntax ---"
-
-    mkdir -p "$NANO_DIR"
-
-    # TypeScript nanorc (if present in templates)
-    if [ -f "$TS_NANORC_TEMPLATE" ]; then
-        copy_template_file "$TS_NANORC_TEMPLATE" "$TS_NANORC_TARGET"
-        ensure_line_in_file "$NANORC" 'include "~/.nano/typescript.nanorc"' 'include "~/.nano/typescript.nanorc"'
-    else
-        warn "TypeScript nanorc template not found: $TS_NANORC_TEMPLATE"
-    fi
-
-    # TSX nanorc
-    copy_template_file "$TSX_NANORC_TEMPLATE" "$TSX_NANORC_TARGET"
-    ensure_line_in_file "$NANORC" 'include "~/.nano/tsx.nanorc"' 'include "~/.nano/tsx.nanorc"'
-
-    # Ship demo files to /tmp
-    cat > /tmp/example.ts <<'TS'
-/** Nano TypeScript highlighting demo */
-export const answer: number = 42;
-TS
-    cat > /tmp/example.tsx <<'TSX'
-/** Nano TSX highlighting demo */
-import React from "react";
-
-type Props = { name: string; ok?: boolean };
-
-export default function Hello(props: Props) {
-  const { name, ok = true } = props;
-  return (
-    <div className="wrap" data-role="header">
-      {/* JSX comment */}
-      <h1>Hello, {name}!</h1>
-      <button disabled={!ok} onClick={() => console.log(`Hi, ${name}`)}>
-        Click
-      </button>
-    </div>
-  );
-}
-TSX
-
-    success "nano syntax installed. Test with:"
-    echo "  nano -Y TypeScript /tmp/example.ts"
-    echo "  nano -Y TSX        /tmp/example.tsx"
-}
-
-verify_installation() {
-    info "--- Verifying Installation ---"
-    local errors=0
-
-    local core_files=(
-      "$BASE_DIR/color_roles.json"
-      "$LAWS_DIR/color-laws.json"
-      "$BASE_DIR/colors.source.sh"
-      "$BASE_DIR/install_hook.sh"
-      "$SYMLINK"
-      "$CORE_VERSION_FILE"
-    )
-    for file in "${core_files[@]}"; do
-        if [ ! -e "$file" ]; then
-            error "Missing core file/symlink: $file"; ((errors++))
-        fi
-    done
-
-    if ! $SKIP_ALIASES; then
-        if [ ! -f "$BASH_ALIASES_FILE" ]; then
-            error "Missing alias file: $BASH_ALIASES_FILE"; ((errors++))
-        fi
-        if ! grep -Fq ". ~/.bash_aliases" "$BASHRC"; then
-            error "Missing aliases loader in .bashrc"; ((errors++))
-        fi
-    fi
-
-    if ! $SKIP_NANO; then
-        if [ ! -f "$TSX_NANORC_TARGET" ]; then
-            error "Missing nano TSX syntax file: $TSX_NANORC_TARGET"; ((errors++))
-        fi
-        if [ -f "$TS_NANORC_TEMPLATE" ] && [ ! -f "$TS_NANORC_TARGET" ]; then
-            error "Missing nano TS syntax file: $TS_NANORC_TARGET"; ((errors++))
-        fi
-        if ! grep -Fq 'include "~/.nano/tsx.nanorc"' "$NANORC" 2>/dev/null; then
-            error "Missing include in ~/.nanorc for TSX syntax"; ((errors++))
-        fi
-    fi
-
-    if [ "$errors" -eq 0 ]; then
-        success "Installation verification passed!"
-    else
-        error "Installation verification failed with $errors error(s)."; exit 1
-    fi
-}
-
-show_next_steps() {
-    echo ""
-    success "=========================================="
-    success "  Installation Complete!"
-    success "=========================================="
-    echo ""
-    info "Next steps:"
-    echo "  1. Reload your shell: source ~/.bashrc"
-    echo "  2. Test TS/TSX highlighting:"
-    echo "     nano -Y TypeScript /tmp/example.ts"
-    echo "     nano -Y TSX        /tmp/example.tsx"
-    echo "  3. Customize colors in:"
-    echo "     $TS_NANORC_TARGET"
-    echo "     $TSX_NANORC_TARGET"
-    echo ""
-}
+FORCE=false
+BACKUP=false
+SKIP_ALIASES=false
+SKIP_NANO=false
+INSTALL_PROMPT=true
+STRICT=false
 
 usage() {
-    cat <<USAGE
+  cat <<USAGE
 Usage: $0 [OPTIONS]
-Options:
-  -f, --force         Force overwrite of existing configuration files.
-  -b, --backup        Create backups before overwriting (requires --force).
-      --skip-aliases  Skip installation of bash aliases.
-      --skip-nano     Skip installation of nano TypeScript/TSX syntax.
-  -h, --help          Show this help message.
-  -v, --version       Show version information.
+
+  --runtime-dir <path>  Install the runtime here.
+                        Default: \$XDG_DATA_HOME/tss/color
+                        (${DEFAULT_RUNTIME})
+  -f, --force           Replace user data (color_roles.json, .bash_aliases).
+                        Code files are always refreshed regardless.
+  -b, --backup          Back up any file replaced by --force.
+      --skip-aliases    Do not install ~/.bash_aliases.
+      --skip-nano       Do not install nano TS/TSX syntax files.
+      --no-prompt       Leave PS1 alone.
+      --prompt          Colour the prompt (default).
+      --strict          Fail on advisory policy warnings too.
+  -h, --help            This message.
+  -v, --version         Print version.
+
+Re-running is safe and idempotent. It also repairs a damaged install.
 USAGE
 }
 
-main() {
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            -f|--force) FORCE_OVERWRITE=true; shift ;;
-            -b|--backup) BACKUP_FILES=true; shift ;;
-            --skip-aliases) SKIP_ALIASES=true; shift ;;
-            --skip-nano) SKIP_NANO=true; shift ;;
-            -h|--help) usage; exit 0 ;;
-            -v|--version) echo "Installer v$CORE_VERSION"; exit 0 ;;
-            *) error "Unknown option: $1"; usage; exit 1 ;;
-        esac
-    done
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --runtime-dir) [ $# -ge 2 ] || { error "--runtime-dir requires a path"; exit 2; }; RUNTIME_DIR="$2"; shift 2 ;;
+    -f|--force)    FORCE=true; shift ;;
+    -b|--backup)   BACKUP=true; shift ;;
+    --skip-aliases) SKIP_ALIASES=true; shift ;;
+    --skip-nano)   SKIP_NANO=true; shift ;;
+    --no-prompt)   INSTALL_PROMPT=false; shift ;;
+    --prompt)      INSTALL_PROMPT=true; shift ;;
+    --strict)      STRICT=true; shift ;;
+    -h|--help)     usage; exit 0 ;;
+    -v|--version)  echo "$VERSION"; exit 0 ;;
+    *) error "Unknown option: $1"; usage >&2; exit 2 ;;
+  esac
+done
 
-    if $BACKUP_FILES && ! $FORCE_OVERWRITE; then
-        error "--backup requires --force."; usage; exit 1
-    fi
+$BACKUP && ! $FORCE && { error "--backup requires --force."; exit 2; }
 
-    echo "=========================================="
-    info "  Starting Color Module Installer"
-    echo "=========================================="
+RUNTIME_DIR="${RUNTIME_DIR%/}"
+case "$RUNTIME_DIR" in
+  /*) ;;
+  *) error "--runtime-dir must be an absolute path."; exit 2 ;;
+esac
 
-    check_dependencies
-    install_core_module
-    install_aliases
-    install_nano_typescript_syntax
-    verify_installation
-    show_next_steps
+# ---------------------------------------------------------------- helpers ---
+backup_path() {
+  local f="$1"
+  [ -e "$f" ] || return 0
+  local b
+  b="${f}.backup.$(date +%Y%m%d_%H%M%S)"
+  cp -a "$f" "$b"
+  info "Backed up: $b"
 }
 
-main "$@"
+# Code: always overwrite with the shipped version.
+install_code() {
+  local src="$1" dest="$2" mode="${3:-644}"
+  [ -f "$src" ] || { error "Template missing: $src"; exit 1; }
+  mkdir -p "$(dirname "$dest")"
+  if [ -f "$dest" ] && cmp -s "$src" "$dest"; then
+    info "$(basename "$dest") already current."
+  else
+    install -m "$mode" "$src" "$dest"
+    success "$(basename "$dest") installed."
+  fi
+}
+
+# Data: create if absent, preserve otherwise.
+install_data() {
+  local src="$1" dest="$2"
+  [ -f "$src" ] || { error "Template missing: $src"; exit 1; }
+  mkdir -p "$(dirname "$dest")"
+  if [ ! -f "$dest" ]; then
+    cp "$src" "$dest"
+    success "$(basename "$dest") created."
+  elif $FORCE; then
+    $BACKUP && backup_path "$dest"
+    cp "$src" "$dest"
+    warn "$(basename "$dest") replaced (--force)."
+  else
+    info "$(basename "$dest") preserved (use --force to replace)."
+  fi
+}
+
+# ------------------------------------------------------------ dependencies --
+info "Colour role system installer v$VERSION"
+if ! command -v jq >/dev/null 2>&1; then
+  error "jq is required. Install it with: sudo apt-get install -y jq"
+  exit 2
+fi
+command -v nano >/dev/null 2>&1 || $SKIP_NANO || warn "nano not found; syntax files will still be installed."
+
+# ------------------------------------------------- migrate legacy layout ----
+# A real directory at ~/ctl_environment from a pre-3.0 install is moved into
+# the runtime once, preserving any roles the user registered.
+if [ -d "$LEGACY_DIR" ] && [ ! -L "$LEGACY_DIR" ]; then
+  if [ "$LEGACY_DIR" != "$RUNTIME_DIR" ]; then
+    mkdir -p "$(dirname "$RUNTIME_DIR")"
+    if [ -e "$RUNTIME_DIR" ]; then
+      info "Merging legacy $LEGACY_DIR into existing runtime."
+      [ -f "$LEGACY_DIR/color_roles.json" ] && [ ! -f "$RUNTIME_DIR/color_roles.json" ] \
+        && cp "$LEGACY_DIR/color_roles.json" "$RUNTIME_DIR/color_roles.json"
+      backup_path "$LEGACY_DIR"
+      rm -rf "$LEGACY_DIR"
+    else
+      mv "$LEGACY_DIR" "$RUNTIME_DIR"
+      success "Migrated legacy runtime to $RUNTIME_DIR"
+    fi
+  fi
+fi
+
+mkdir -p "$RUNTIME_DIR" "$RUNTIME_DIR/laws/color" "$RUNTIME_DIR/cache"
+
+# ------------------------------------------------------------ install core --
+install_data "$TEMPLATE_DIR/color_roles.json.template"            "$RUNTIME_DIR/color_roles.json"
+install_code "$TEMPLATE_DIR/laws/color/color-laws.json.template"   "$RUNTIME_DIR/laws/color/color-laws.json"
+install_code "$TEMPLATE_DIR/colors.source.sh.template"            "$RUNTIME_DIR/colors.source.sh"
+install_code "$TEMPLATE_DIR/install_hook.sh.template"             "$RUNTIME_DIR/install_hook.sh" 755
+install_code "$REPO_ROOT/validate_color_roles.sh"                 "$RUNTIME_DIR/validate_color_roles.sh" 755
+
+# Invalidate the compiled cache so the next shell recompiles from the schema.
+rm -f "$RUNTIME_DIR/cache/roles.sh"
+echo "$VERSION" > "$RUNTIME_DIR/.version"
+
+# --------------------------------------------------- compatibility links ----
+# These are conveniences only. The loader is self-locating and works without
+# them; nothing in the runtime resolves through these paths.
+if [ "$LEGACY_DIR" != "$RUNTIME_DIR" ]; then
+  if [ -e "$LEGACY_DIR" ] && [ ! -L "$LEGACY_DIR" ]; then
+    warn "$LEGACY_DIR exists and is not a symlink; leaving it alone."
+  else
+    ln -sfn "$RUNTIME_DIR" "$LEGACY_DIR"
+    info "Compatibility link: $LEGACY_DIR -> $RUNTIME_DIR"
+  fi
+fi
+if [ -e "$LEGACY_SYMLINK" ] && [ ! -L "$LEGACY_SYMLINK" ]; then
+  warn "$LEGACY_SYMLINK is a regular file; leaving it alone."
+else
+  ln -sfn "$RUNTIME_DIR/color_roles.json" "$LEGACY_SYMLINK"
+fi
+
+# ---------------------------------------------------------------- aliases ---
+if $SKIP_ALIASES; then
+  info "Skipping aliases."
+else
+  install_data "$REPO_ROOT/bash_aliases_template.sh" "$BASH_ALIASES_FILE"
+fi
+
+# ------------------------------------------------------------------- nano ---
+if $SKIP_NANO; then
+  info "Skipping nano syntax."
+else
+  mkdir -p "$NANO_DIR"
+  install_code "$TEMPLATE_DIR/nano/typescript.nanorc.template" "$NANO_DIR/typescript.nanorc"
+  install_code "$TEMPLATE_DIR/nano/tsx.nanorc.template"        "$NANO_DIR/tsx.nanorc"
+  touch "$NANORC"
+  for inc in 'include "~/.nano/typescript.nanorc"' 'include "~/.nano/tsx.nanorc"'; do
+    grep -Fqx "$inc" "$NANORC" || echo "$inc" >> "$NANORC"
+  done
+fi
+
+# ---------------------------------------------------------------- bashrc ----
+# One managed block, delimited by sentinels, rewritten wholesale each run.
+# Nothing outside the sentinels is ever touched.
+touch "$BASHRC"
+if grep -Fq "$BEGIN_MARK" "$BASHRC"; then
+  tmp="$(mktemp)"
+  awk -v b="$BEGIN_MARK" -v e="$END_MARK" '
+    index($0,b){skip=1} !skip{print} index($0,e){skip=0}' "$BASHRC" > "$tmp"
+  mv "$tmp" "$BASHRC"
+fi
+{
+  echo "$BEGIN_MARK"
+  echo "# Managed by install.sh v$VERSION. Edits inside this block are overwritten."
+  echo "export COLOR_RUNTIME_HOME=\"$RUNTIME_DIR\""
+  $INSTALL_PROMPT || echo "export COLOR_PROMPT_DISABLE=1"
+  echo "[ -r \"\$COLOR_RUNTIME_HOME/colors.source.sh\" ] && . \"\$COLOR_RUNTIME_HOME/colors.source.sh\""
+  if ! $SKIP_ALIASES; then
+    echo "[ -r \"\$HOME/.bash_aliases\" ] && . \"\$HOME/.bash_aliases\""
+  fi
+  echo "$END_MARK"
+} >> "$BASHRC"
+success "Managed block written to .bashrc"
+
+# --------------------------------------------------------------- enforce ----
+info "Enforcing colour policy..."
+VALIDATE_ARGS=()
+$STRICT && VALIDATE_ARGS+=(--strict)
+if ! "$RUNTIME_DIR/validate_color_roles.sh" "${VALIDATE_ARGS[@]+"${VALIDATE_ARGS[@]}"}" \
+      "$RUNTIME_DIR/color_roles.json" "$RUNTIME_DIR/laws/color/color-laws.json"; then
+  error "Installed schema violates color-laws.json. Install FAILED."
+  error "Ways out:"
+  error "  recolour one role:  $RUNTIME_DIR/install_hook.sh <role> <category> <hierarchy> --replace"
+  error "  reset to shipped:   $0 --force"
+  error "  relax the rule:     edit $RUNTIME_DIR/laws/color/color-laws.json"
+  exit 1
+fi
+
+# ---------------------------------------------------------------- verify ----
+fail=0
+for f in color_roles.json laws/color/color-laws.json colors.source.sh \
+         install_hook.sh validate_color_roles.sh .version; do
+  [ -e "$RUNTIME_DIR/$f" ] || { error "Missing after install: $RUNTIME_DIR/$f"; fail=1; }
+done
+for f in install_hook.sh validate_color_roles.sh; do
+  [ -x "$RUNTIME_DIR/$f" ] || { error "Not executable: $RUNTIME_DIR/$f"; fail=1; }
+done
+grep -Fq "$BEGIN_MARK" "$BASHRC" || { error "Managed block missing from .bashrc"; fail=1; }
+
+# Prove the loader works standalone, with no symlink and no COLOR_RUNTIME_HOME.
+if ! ( unset COLOR_RUNTIME_HOME
+       . "$RUNTIME_DIR/colors.source.sh" >/dev/null 2>&1
+       [ "${COLOR_SYSTEM_READY:-0}" -eq 1 ] && get_color_by_role prompt >/dev/null ); then
+  error "Loader self-test failed: runtime did not come up standalone."
+  fail=1
+fi
+
+[ "$fail" -eq 0 ] || { error "Verification failed."; exit 1; }
+
+echo
+success "Install complete. Runtime: $RUNTIME_DIR"
+info "Reload your shell:  source ~/.bashrc"
+info "Try:  colorroles  |  color_apply success \"it works\"  |  color_validate"
