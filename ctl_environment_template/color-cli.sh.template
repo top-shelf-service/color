@@ -32,7 +32,7 @@ __color_vocabulary() {
   shift
   if [ "$#" -gt 1 ] ||
      { [ "$mode" = search ] && [ "$#" -eq 0 ]; } ||
-     { [ "$#" -eq 1 ] && [[ ! "$1" =~ [^[:space:]] ]]; }; }; then
+     { [ "$#" -eq 1 ] && [[ ! "$1" =~ [^[:space:]] ]]; }; then
     if [ "$mode" = man ]; then
       echo 'Usage: color man [term] (quote multiword terms)' >&2
     else
