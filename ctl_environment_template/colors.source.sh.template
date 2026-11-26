@@ -43,6 +43,7 @@ export COLOR_ROLE_SCHEMA_PATH COLOR_LAWS_PATH
 
 declare -gA COLOR_ROLE_HEX 2>/dev/null || declare -A COLOR_ROLE_HEX
 declare -gA COLOR_ROLE_ANSI 2>/dev/null || declare -A COLOR_ROLE_ANSI
+declare -gA COLOR_ROLE_HIERARCHY 2>/dev/null || declare -A COLOR_ROLE_HIERARCHY
 COLOR_SYSTEM_READY=0
 
 __color_warn() { [ -n "${COLOR_QUIET:-}" ] || printf '[color] %s\n' "$1" >&2; }
@@ -64,9 +65,9 @@ __color_compile_cache() {
   mkdir -p "$dir" 2>/dev/null || return 1
   local tmp; tmp="$(mktemp "$COLOR_CACHE_FILE.XXXXXX" 2>/dev/null)" || return 1
   {
-    echo "# generated from $COLOR_ROLE_SCHEMA_PATH - do not edit"
+    echo "# color-cache-v2: generated from $COLOR_ROLE_SCHEMA_PATH - do not edit"
     jq -r '.[] | select(.role and .hex_value)
-           | "COLOR_ROLE_HEX[\(.role|@sh)]=\(.hex_value|@sh)"' \
+           | "COLOR_ROLE_HEX[\(.role|@sh)]=\(.hex_value|@sh)\nCOLOR_ROLE_HIERARCHY[\(.role|@sh)]=\((.hierarchy // "")|@sh)"' \
       "$COLOR_ROLE_SCHEMA_PATH" 2>/dev/null
   } > "$tmp" || { rm -f "$tmp"; return 1; }
   mv "$tmp" "$COLOR_CACHE_FILE" 2>/dev/null || { rm -f "$tmp"; return 1; }
@@ -79,7 +80,8 @@ __color_load() {
     return 1
   fi
   # Recompile only when the schema is newer than the cache.
-  if [ ! -r "$COLOR_CACHE_FILE" ] || [ "$COLOR_ROLE_SCHEMA_PATH" -nt "$COLOR_CACHE_FILE" ]; then
+  if [ ! -r "$COLOR_CACHE_FILE" ] || [ "$COLOR_ROLE_SCHEMA_PATH" -nt "$COLOR_CACHE_FILE" ] ||
+     ! grep -q "^# color-cache-v2:" "$COLOR_CACHE_FILE"; then
     if ! __color_compile_cache; then
       if [ ! -r "$COLOR_CACHE_FILE" ]; then
         __color_warn "cannot compile role cache (is jq installed?) — colours disabled"
@@ -88,6 +90,7 @@ __color_load() {
       __color_warn "using stale role cache; run 'color_reload' after installing jq"
     fi
   fi
+  COLOR_ROLE_HEX=() COLOR_ROLE_ANSI=() COLOR_ROLE_HIERARCHY=()
   # shellcheck source=/dev/null
   . "$COLOR_CACHE_FILE" || return 1
   local role
@@ -111,7 +114,11 @@ color_apply() {
   local text="$*"
   local ansi="${COLOR_ROLE_ANSI[$role]:-}"
   if [ "$COLOR_SYSTEM_READY" -eq 1 ] && [ -n "$ansi" ] && [ -t 1 ]; then
-    printf '%b%s\033[0m\n' "$ansi" "$text"
+    local emphasis=''
+    case "${COLOR_ROLE_HIERARCHY[$role]:-}" in
+      alert|feedback) emphasis='\033[1m' ;;
+    esac
+    printf '%b%b%s\033[0m\n' "$emphasis" "$ansi" "$text"
   else
     printf '%s\n' "$text"
   fi
