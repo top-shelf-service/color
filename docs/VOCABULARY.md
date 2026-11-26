@@ -147,3 +147,31 @@ For vocabulary entries, a positive example shows what the term means and a contr
 Following the audit at `bfd55f4`, the existing checker now rejects missing version/scope, malformed source URL shape, blank classification definitions, repeated aliases, identical normalized definitions, and extra relationship fields. There are 16 negative controls in total. URL shape validation does not verify that a page exists; exact duplicate detection does not prove semantic distinctness. Do not add a second inventory, hardcoded duplicate role mapping, generic ontology engine, or artificial semantic assertions just to make tests green. A wrong but structurally valid relationship or mapping still needs human review. Existing entries and typed edges remain reviewable in the canonical JSON.
 
 Five targeted definitions were clarified without adding concepts or changing role identifiers: primary key (constraint), rollback (SQL transaction), executable (filesystem permission context), error (detected problem), and failure (unsuccessful outcome). See the [PostgreSQL constraints](https://www.postgresql.org/docs/current/ddl-constraints.html) and [ROLLBACK](https://www.postgresql.org/docs/current/sql-rollback.html) documentation for the SQL distinctions. No palette, runtime, or policy changes. The 274 terms and 31 edges remain a bounded learning reference, not a proven universal ontology. Full semantic review and learner acceptance remain open; prioritize representative recognition examples before spending effort on unused distinctions.
+
+
+## C04 — Representative semantic and readability review (v1.0.3)
+
+Reviewed the exact v1.0.2 candidate at `df9d8a0`. The CI log confirms 274 terms, 10 domains, 31 relationships and 16 negative controls. The review below covers representative distinctions in each domain, not a certification of all individual terms or examples. Definitions remain independent of color. Clarified ten existing definitions without adding concepts or changing relationships, and added direct references for DNS, TLS, Docker storage and tracing.
+
+| Domain | Positive recognition example | Contrast / non-example | Reference |
+|---|---|---|---|
+| Filesystem | `current -> releases/v1` is a symbolic link; it stores a path. | Two hard-linked names share an inode; neither is a path-storing symbolic link. | [Linux symlink(7)](https://man7.org/linux/man-pages/man7/symlink.7.html) |
+| Shell | `printf '%s' hello` supplies an argument; `\|` joins commands into a pipeline. | A nonzero exit status is not success; a pipeline may need pipefail to expose an earlier command failure. | [Bash manual](https://www.gnu.org/software/bash/manual/bash.html) |
+| Programming | In `function add(a,b) { return a+b; }`, a and b are parameters; 5 and 3 in add(5,3) are arguments. | A const binding cannot be reassigned; that does not make its referenced object immutable. | [MDN Parameter](https://developer.mozilla.org/en-US/docs/Glossary/Parameter) |
+| Data | `PRIMARY KEY (id)` constrains row identity; `public.users` names a table in a database schema. | A JSON data schema describes structure; it is not a SQL namespace. | [PostgreSQL constraints](https://www.postgresql.org/docs/current/ddl-constraints.html), [schemas](https://www.postgresql.org/docs/current/ddl-schemas.html) |
+| Version control | A commit records a snapshot and history links; a branch tracks a line of development. | A release tag does not advance automatically with each new commit on main. | [Git glossary](https://git-scm.com/docs/gitglossary) |
+| Runtime | `node:22` is an image reference; a container is an instance created from an image. | A Docker-managed volume is not the same as mounting a particular host path. | [Docker overview](https://docs.docker.com/get-started/docker-overview), [storage](https://docs.docker.com/engine/storage/) |
+| Networking | DNS retrieves name records; TLS protects communication; HTTP specifies request and response semantics. | DNS resolution does not establish encryption; an informational HTTP response is not necessarily the final outcome. | [RFC 1034](https://www.rfc-editor.org/rfc/rfc1034.html), [RFC 8446](https://www.rfc-editor.org/rfc/rfc8446.html), [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html) |
+| Delivery | The Color CI workflow contains check and docker jobs; each job has steps. | A runner executes a job; it is not the job itself. | [GitHub Actions](https://docs.github.com/en/actions/get-started/understand-github-actions) |
+| Security | Signing in verifies an identity; checking whether that identity can write a file determines authorization. | Successful authentication alone does not grant permission to write. | [NIST authentication](https://csrc.nist.gov/glossary/term/authentication), [authorization](https://csrc.nist.gov/glossary/term/authorization) |
+| Observability and outcomes | A trace connects spans; one database operation may be represented by one span. A known queued job is pending. | An absent job result with no evidence of its state is unknown, not success or confirmed pending. | [OpenTelemetry traces](https://opentelemetry.io/docs/concepts/signals/traces/), Color evidence-first convention |
+
+### Read the complete vocabulary without maintaining another copy
+
+From the repository root, the existing jq dependency can generate a readable grouped reference directly from the authoritative JSON. No new dependency, runtime feature, or checked-in duplicate is required.
+
+```bash
+jq -r '. as $v | .domains[] | .id as $domain | "\n=== " + .title + " ===", ($v.terms[] | select(.domain == $domain) | "\n" + (.id | gsub("_"; " ")) + "\n  Meaning: " + .definition + "\n  Example: " + .example + (if (.aliases | length) > 0 then "\n  Also called: " + (.aliases | join(", ")) else "" end))' docs/vocabulary.json
+```
+
+The representative review is complete for the listed distinctions; owner learning acceptance is still required. Unreviewed concepts remain reference material; do not automatically promote every vocabulary entry into a color role. If a later workflow requires another concept, verify it at that point. This closes the bounded review without an exhaustive ontology or additional validator.

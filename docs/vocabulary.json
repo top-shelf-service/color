@@ -1,5 +1,5 @@
 {
-  "version": "1.0.2",
+  "version": "1.0.3",
   "scope": "Core technical vocabulary for Color: Linux/Bash, source code, data, Git, runtime, network, delivery, security and observability. Not an exhaustive dictionary of computing; no colors or new runtime roles are assigned.",
   "classification": {
     "fields": {
@@ -85,7 +85,11 @@
     "network-ipv6": "https://www.rfc-editor.org/rfc/rfc8200.html",
     "network-addressing": "https://www.rfc-editor.org/info/rfc4291/",
     "data-pg-constraints": "https://www.postgresql.org/docs/current/ddl-constraints.html",
-    "data-pg-rollback": "https://www.postgresql.org/docs/current/sql-rollback.html"
+    "data-pg-rollback": "https://www.postgresql.org/docs/current/sql-rollback.html",
+    "network-dns": "https://www.rfc-editor.org/rfc/rfc1034.html",
+    "network-tls": "https://www.rfc-editor.org/rfc/rfc8446.html",
+    "runtime-storage": "https://docs.docker.com/engine/storage/",
+    "observability-traces": "https://opentelemetry.io/docs/concepts/signals/traces/"
   },
   "domains": [
     {
@@ -146,7 +150,8 @@
         "runtime-1",
         "runtime-2",
         "runtime-3",
-        "runtime-bind"
+        "runtime-bind",
+        "runtime-storage"
       ]
     },
     {
@@ -158,7 +163,9 @@
         "network-2",
         "network-3",
         "network-ipv6",
-        "network-addressing"
+        "network-addressing",
+        "network-dns",
+        "network-tls"
       ]
     },
     {
@@ -186,7 +193,8 @@
       "title": "Observability, outcomes and state",
       "definition": "Signals and outcome terms, distinct from object identities.",
       "reference_ids": [
-        "observability-1"
+        "observability-1",
+        "observability-traces"
       ]
     }
   ],
@@ -226,7 +234,7 @@
     {
       "id": "hard_link",
       "domain": "filesystem",
-      "definition": "Additional name for an existing inode on the same filesystem.",
+      "definition": "Directory entry referring to an existing filesystem inode; every hard link to the object refers to the same inode.",
       "example": "two names for one file",
       "aliases": []
     },
@@ -1145,7 +1153,7 @@
     {
       "id": "branch",
       "domain": "version_control",
-      "definition": "Movable Git reference to a commit representing a line of work.",
+      "definition": "Line of Git development whose tip is tracked by a movable reference to a commit.",
       "example": "main",
       "aliases": []
     },
@@ -1168,7 +1176,7 @@
     {
       "id": "tag",
       "domain": "version_control",
-      "definition": "Git reference under refs/tags that can identify any Git object, often marking a release commit.",
+      "definition": "Git reference under refs/tags identifying an object, often used to mark a release; unlike a branch it does not advance automatically when commits are made.",
       "example": "v3.1.2",
       "aliases": []
     },
@@ -1547,7 +1555,7 @@
     {
       "id": "dns",
       "domain": "network",
-      "definition": "Distributed naming system resolving domain names and other records.",
+      "definition": "Distributed naming system that stores and retrieves records associated with domain names.",
       "example": "example.com lookup",
       "aliases": []
     },
@@ -1561,7 +1569,7 @@
     {
       "id": "tls",
       "domain": "network",
-      "definition": "Protocol providing a protected communication channel with authentication and integrity.",
+      "definition": "Protocol protecting data in transit through confidentiality and integrity, with endpoint authentication as configured.",
       "example": "TLS handshake",
       "aliases": []
     },
@@ -1638,7 +1646,7 @@
     {
       "id": "http_status",
       "domain": "network",
-      "definition": "Numeric HTTP response code indicating request outcome.",
+      "definition": "Three-digit code describing an HTTP response's semantics, including informational responses, success, redirection and errors.",
       "example": "404",
       "aliases": []
     },
@@ -2030,7 +2038,7 @@
     {
       "id": "log",
       "domain": "observability",
-      "definition": "Recorded occurrence with contextual data.",
+      "definition": "Recorded information about an occurrence or activity, often with a timestamp and contextual fields.",
       "example": "application log",
       "aliases": []
     },
@@ -2044,14 +2052,14 @@
     {
       "id": "trace",
       "domain": "observability",
-      "definition": "Record connecting operations along an execution path.",
+      "definition": "Record of a request or operation's path through one or more connected spans.",
       "example": "distributed request trace",
       "aliases": []
     },
     {
       "id": "span",
       "domain": "observability",
-      "definition": "Timed operation within a trace.",
+      "definition": "Representation of a single operation in a trace, typically with a start time, end time and contextual attributes.",
       "example": "database call span",
       "aliases": []
     },
@@ -2100,7 +2108,7 @@
     {
       "id": "pending",
       "domain": "observability",
-      "definition": "Work or decision has not yet reached a terminal outcome.",
+      "definition": "Work or decision known to be awaiting progress or a result; unlike unknown, its waiting state is established.",
       "example": "queued CI",
       "aliases": []
     },
