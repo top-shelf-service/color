@@ -114,11 +114,21 @@ fi
 # ---- colour predicate, evaluated in-process -------------------------------
 hex_ok() {
   local hex="$1" up r g b lum
+  # Format comes from the policy, not a hardcoded pattern, so a custom
+  # require_hex_format.pattern in the laws file is honoured here too.
+  # Do NOT inline the default pattern in a :- expansion: the } in {6}
+  # terminates the expansion early, so the trailing $} is appended to the
+  # pattern and it matches nothing. Use the variable when set, and a plain
+  # case pattern when the validator supplied none.
+  if [ -n "${COLOR_LAW_HEX_PATTERN:-}" ]; then
+    [[ "$hex" =~ ${COLOR_LAW_HEX_PATTERN} ]] || return 1
+  else
+    case "$(printf '%s' "$hex" | tr '[:lower:]' '[:upper:]')" in
+      "#"[0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F]) ;;
+      *) return 1 ;;
+    esac
+  fi
   up="$(printf '%s' "$hex" | tr '[:lower:]' '[:upper:]')"
-  case "$up" in
-    "#"[0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F]) ;;
-    *) return 1 ;;
-  esac
   [ -n "$COLOR_LAW_FORBID_WHITE" ] && [ "$up" = "$(printf '%s' "$COLOR_LAW_FORBID_WHITE" | tr '[:lower:]' '[:upper:]')" ] && return 1
   [ -n "$COLOR_LAW_FORBID_BLACK" ] && [ "$up" = "$(printf '%s' "$COLOR_LAW_FORBID_BLACK" | tr '[:lower:]' '[:upper:]')" ] && return 1
   r=$((16#${up:1:2})); g=$((16#${up:3:2})); b=$((16#${up:5:2}))
@@ -138,7 +148,13 @@ hex_ok() {
     rellum=$(( (2126 * COLOR_LAW_SRGB_LIN[r]
               + 7152 * COLOR_LAW_SRGB_LIN[g]
               + 722  * COLOR_LAW_SRGB_LIN[b]) / 10000 ))
-    [ "$rellum" -lt "${COLOR_LAW_MIN_RELLUM_1E6:-0}" ] && return 1
+    # Pass if the colour clears the floor on either side of the background:
+    # lighter than it (at least MIN) or darker than it (at most MAX). The
+    # darker side is what makes light terminals work at all.
+    if [ "$rellum" -lt "${COLOR_LAW_MIN_RELLUM_1E6:-0}" ] && \
+       [ "$rellum" -gt "${COLOR_LAW_MAX_RELLUM_1E6:--1}" ]; then
+      return 1
+    fi
   fi
   return 0
 }
@@ -208,12 +224,16 @@ fi
 # Commit atomically, then re-validate the live file. Roll back on failure.
 BACKUP="$WORK/rollback.json"
 cp "$SCHEMA_PATH" "$BACKUP"
+# mktemp creates 0600; preserve the schema's mode across the atomic replace.
+SCHEMA_MODE="$(stat -c %a "$SCHEMA_PATH" 2>/dev/null || echo 644)"
 TMP="$(mktemp "${SCHEMA_PATH}.XXXXXX")"
 cat "$CANDIDATE" > "$TMP"
+chmod "$SCHEMA_MODE" "$TMP"
 mv "$TMP" "$SCHEMA_PATH"
 
 if ! check_candidate "$SCHEMA_PATH"; then
   cp "$BACKUP" "$SCHEMA_PATH"
+  chmod "$SCHEMA_MODE" "$SCHEMA_PATH" 2>/dev/null || true
   echo "ERROR: post-write validation failed. Schema rolled back, no changes made." >&2
   exit 1
 fi

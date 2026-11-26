@@ -143,7 +143,11 @@ color_doctor() {
   echo "jq             : $(command -v jq || echo 'NOT FOUND') $(jq --version 2>/dev/null)"
   echo "bash           : $BASH_VERSION"
   echo "COLOR_* in env :"
-  env | grep -i '^COLOR' | sed 's/^/  /' || echo "  (none)"
+  # Capture first: a pipeline's status is the last command's (sed, always 0),
+  # so the old `... | sed ... || echo "(none)"` could never print "(none)".
+  local _color_env
+  _color_env="$(env | grep -i '^COLOR' | sed 's/^/  /' || true)"
+  if [ -n "$_color_env" ]; then printf '%s\n' "$_color_env"; else echo "  (none)"; fi
 }
 
 # Enforcement is delegated to the single engine, never reimplemented here.

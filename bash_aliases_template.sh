@@ -92,7 +92,7 @@ alias meminfo='free -h'
 # Color System Aliases (Requires ctl_environment/colors.source.sh to be sourced in .bashrc)
 # -----------------------
 
-alias colorreload='source $HOME/ctl_environment/colors.source.sh'
+alias colorreload='source "${COLOR_RUNTIME_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/tss/color}/colors.source.sh"'
 alias colortest='color_apply warnings "Warning test"; color_apply success "Success test"; color_apply errors "Error test"; color_apply typescript "TS Test"; color_apply javascript "JS Test"; color_apply nodejs "Node Test"'
 alias colorroles='color_roles'
 

@@ -47,18 +47,31 @@ echo "  runtime         $RUNTIME_DIR"
 echo "  compat link     $LEGACY_DIR"
 echo "  compat link     $LEGACY_SYMLINK"
 echo "  managed block   $BASHRC"
-$KEEP_ALIASES || echo "  aliases         $BASH_ALIASES_FILE (prompted separately)"
+if ! $KEEP_ALIASES; then
+  if $ASSUME_YES; then
+    echo "  aliases         $BASH_ALIASES_FILE (removed with -y)"
+  else
+    echo "  aliases         $BASH_ALIASES_FILE (prompted separately)"
+  fi
+fi
 
 if ! $ASSUME_YES; then
   read -r -p "Proceed? (y/N) " reply
   case "$reply" in [yY]|[yY][eE][sS]) ;; *) info "Cancelled."; exit 0 ;; esac
 fi
 
-# Refuse to delete anything outside $HOME.
+# Refuse to delete anything outside $HOME, plus $HOME itself and the
+# directories whose loss would take the whole user environment with them,
+# even though they sit inside it.
 safe_rm_dir() {
-  local d="$1"
+  local d="$1" resolved
   [ -n "$d" ] && [ -d "$d" ] || return 0
-  case "$(readlink -f "$d")" in
+  resolved="$(readlink -f "$d")"
+  case "$resolved" in
+    "$HOME"|"$HOME/.local"|"$HOME/.local/share"|"$HOME/.config")
+      warn "Refusing to remove protected path: $d"; return 0 ;;
+  esac
+  case "$resolved" in
     "$HOME"/*) rm -rf "$d"; success "Removed $d" ;;
     *) warn "Refusing to remove path outside \$HOME: $d" ;;
   esac
@@ -79,11 +92,16 @@ done
 if [ -f "$BASHRC" ]; then
   if grep -Fq "$BEGIN_MARK" "$BASHRC"; then
     cp -a "$BASHRC" "${BASHRC}.backup.$(date +%Y%m%d_%H%M%S)"
-    tmp="$(mktemp)"
-    awk -v b="$BEGIN_MARK" -v e="$END_MARK" '
-      index($0,b){skip=1} !skip{print} index($0,e){skip=0}' "$BASHRC" > "$tmp"
-    mv "$tmp" "$BASHRC"
-    success "Managed block removed from .bashrc (backup created)."
+    if ! grep -Fq "$END_MARK" "$BASHRC"; then
+      warn "Managed block in $BASHRC is damaged (begin marker without end marker)."
+      warn "Leaving .bashrc untouched; backup created. Remove the block by hand."
+    else
+      tmp="$(mktemp)"
+      awk -v b="$BEGIN_MARK" -v e="$END_MARK" '
+        index($0,b){skip=1} !skip{print} index($0,e){skip=0}' "$BASHRC" > "$tmp"
+      mv "$tmp" "$BASHRC"
+      success "Managed block removed from .bashrc (backup created)."
+    fi
   else
     info "No managed block in .bashrc."
     if grep -qE 'ctl_environment/colors\.source\.sh|COLOR_RUNTIME_HOME' "$BASHRC"; then

@@ -59,6 +59,8 @@ ROLES="$(readlink -f "$ROLES")"
 
 jq empty "$ROLES" >/dev/null 2>&1 || { error "Roles file is not valid JSON: $ROLES"; exit 1; }
 [ "$(jq -r 'type' "$ROLES")" = "array" ] || { error "Roles file must be a JSON array."; exit 1; }
+jq -e 'all(.[]; type == "object")' "$ROLES" >/dev/null 2>&1 \
+  || { error "Roles file entries must be objects (found a non-object entry)."; exit 1; }
 
 # ---------- load policy ----------
 if [ -f "$LAWS" ] && jq empty "$LAWS" >/dev/null 2>&1; then
@@ -140,8 +142,11 @@ if $EMIT; then
   CBG="$([ -n "$LAWS" ] && jq -r '.rules.require_contrast_ratio.background // "#1E1E1E"' "$LAWS" || echo '#1E1E1E')"
   CRATIO="$([ -n "$LAWS" ] && jq -r '.rules.require_contrast_ratio.min_ratio // 4.5' "$LAWS" || echo 4.5)"
   printf "COLOR_LAW_CONTRAST_BG=%s\n" "$CBG"
-  # Minimum relative luminance needed to clear that ratio against that
-  # background, scaled by 1e6 so callers can compare using integer arithmetic.
+  # Contrast is symmetric: a role clears the floor by being lighter than the
+  # background (relative luminance at least ratio*(lbg+0.05)-0.05) OR darker
+  # than it (at most (lbg+0.05)/ratio-0.05). The old code emitted only the
+  # lighter bound, so against a light background it demanded an impossible
+  # luminance and the hook rejected every colour. Both bounds, scaled by 1e6.
   jq -rn --arg bg "$CBG" --argjson ratio "$CRATIO" '
     def chan($h; $i): ($h[$i:$i+2] | ascii_downcase
       | explode | map(if . >= 97 then . - 87 else . - 48 end) | .[0] * 16 + .[1]);
@@ -149,7 +154,8 @@ if $EMIT; then
       | if $x <= 0.04045 then $x / 12.92 else pow(($x + 0.055) / 1.055; 2.4) end;
     ($bg[1:]) as $h
     | (0.2126 * srgb(chan($h;0)) + 0.7152 * srgb(chan($h;2)) + 0.0722 * srgb(chan($h;4))) as $lbg
-    | "COLOR_LAW_MIN_RELLUM_1E6=\((($ratio * ($lbg + 0.05) - 0.05) * 1000000) | floor)"'
+    | "COLOR_LAW_MIN_RELLUM_1E6=\((($ratio * ($lbg + 0.05) - 0.05) * 1000000) | floor)",
+      "COLOR_LAW_MAX_RELLUM_1E6=\((((($lbg + 0.05) / $ratio) - 0.05) * 1000000) | floor)"'
   # 256-entry sRGB linearisation table scaled by 1e6. Exact, so a caller can
   # reproduce WCAG luminance without floating point or extra subprocesses.
   jq -rn '"COLOR_LAW_SRGB_LIN=(" + ([range(0;256)

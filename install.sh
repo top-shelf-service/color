@@ -219,6 +219,12 @@ fi
 # Nothing outside the sentinels is ever touched.
 touch "$BASHRC"
 if grep -Fq "$BEGIN_MARK" "$BASHRC"; then
+  if ! grep -Fq "$END_MARK" "$BASHRC"; then
+    error "Managed block in $BASHRC is damaged (begin marker without end marker)."
+    error "Refusing to rewrite it. Fix or remove the block by hand, then re-run."
+    exit 1
+  fi
+  backup_path "$BASHRC"
   tmp="$(mktemp)"
   awk -v b="$BEGIN_MARK" -v e="$END_MARK" '
     index($0,b){skip=1} !skip{print} index($0,e){skip=0}' "$BASHRC" > "$tmp"

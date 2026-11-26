@@ -24,7 +24,7 @@
     },
     "forbid_duplicate_hex": {
       "enabled": false,
-      "reason": "Shared colours are legal but usually unintended. Off by default because directory and prompt intentionally share #A020F0. Enable here, or pass --strict, to make it a hard failure."
+      "reason": "Shared colours are legal but usually unintended. Off by default; enable here, or pass --strict, to make it a hard failure."
     },
     "require_fields": {
       "enabled": true,

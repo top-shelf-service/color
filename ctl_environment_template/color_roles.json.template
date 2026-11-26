@@ -12,7 +12,7 @@
   {
     "role": "prompt",
     "category": "interface",
-    "color_code": "COLOR_PURPLE",
+    "color_code": "COLOR_PINK",
     "hex_value": "#FA99C3",
     "hierarchy": "parent",
     "source_type": "static",

@@ -31,10 +31,14 @@ else
   G='\033[0;32m'; R='\033[0;31m'; Y='\033[1;33m'; B='\033[0;34m'; DIM='\033[2m'; NC='\033[0m'
 fi
 
-TOTAL=35
+TOTAL=36
 n=0; pass=0; fail=0; skip=0
 declare -a FAILED=()
 START=$(date +%s)
+
+# Log path: one per run, so parallel runs don't clobber each other.
+GATE_LOG="$(mktemp)"
+trap 'rm -f "$GATE_LOG"' EXIT
 
 hms() { local s=$1; printf '%dm%02ds' $((s/60)) $((s%60)); }
 
@@ -67,7 +71,7 @@ t() {
   status "$name"
   local t0 t1
   t0=$(date +%s%N)
-  if "$@" >/tmp/gate.log 2>&1; then
+  if "$@" >"$GATE_LOG" 2>&1; then
     t1=$(date +%s%N)
     emit "PASS" "$G" "$name" "$(( (t1-t0)/1000000 ))ms"
     pass=$((pass+1))
@@ -75,8 +79,8 @@ t() {
     t1=$(date +%s%N)
     emit "FAIL" "$R" "$name" "$(( (t1-t0)/1000000 ))ms"
     FAILED+=("$name")
-    if $VERBOSE; then sed 's/^/        /' /tmp/gate.log
-    else tail -4 /tmp/gate.log | sed 's/^/        /'; fi
+    if $VERBOSE; then sed 's/^/        /' "$GATE_LOG"
+    else tail -4 "$GATE_LOG" | sed 's/^/        /'; fi
     fail=$((fail+1))
   fi
 }
@@ -134,7 +138,11 @@ c_lint() {
   if git rev-parse --git-dir >/dev/null 2>&1; then
     mapfile -t files < <(git ls-files '*.sh')
   else
-    mapfile -t files < <(find . -name '*.sh' -not -path './.git/*' | sed 's|^\./||')
+    # No git checkout (e.g. the Docker image, a zip/rsync copy): approximate
+    # `git ls-files` with find, but skip hidden directories — that is where
+    # the installed runtime and its generated cache live, and linting
+    # generated files fails the gate on files that are not repo sources.
+    mapfile -t files < <(find . -name '*.sh' -not -path './.*' | sed 's|^\./||')
   fi
   shellcheck "${files[@]}" \
     ctl_environment_template/install_hook.sh.template \
@@ -319,6 +327,18 @@ t "install after uninstall works" c26
 c27() { newhome; inst --runtime-dir "$H/custom/rt"; HOME="$H" ./uninstall.sh -y >/dev/null 2>&1
         [ ! -d "$H/custom/rt" ]; }
 t "uninstall finds a custom runtime dir" c27
+
+# Regression: light background must not make the hook reject dark roles.
+# The emit once produced only a lighter-side threshold, which is impossible
+# against a white background, so the hook refused every colour. The fix emits
+# a darker-side bound too; this case proves a dark role registers.
+c28() { newhome; inst
+        jq '.rules.require_contrast_ratio.background = "#FFFFFF"' "$RT/laws/color/color-laws.json" > "$H/laws.json" && mv "$H/laws.json" "$RT/laws/color/color-laws.json"
+        jq 'map(.hex_value = "#1E1E1E")' "$RT/color_roles.json" > "$H/dark.json"
+        HOME="$H" COLOR_ROLE_SCHEMA_PATH="$H/dark.json" COLOR_RUNTIME_HOME="$RT" \
+          "$RT/install_hook.sh" newrole deployment child --hex '#2A2A2A' >/dev/null 2>&1 &&
+        [ "$(jq -r 'any(.[]; .role == "newrole")' "$H/dark.json")" = true ]; }
+t "hook registers a dark role against a light background" c28
 
 # ----------------------------------------------------------------- summary --
 ELAPSED=$(( $(date +%s) - START ))
