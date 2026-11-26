@@ -27,7 +27,7 @@ color() {
 # untouched until the candidate installer and validation both succeed.
 __color_update_runtime() (
   set -euo pipefail
-  local rt repo work stage backup revision version
+  local rt repo work='' stage backup='' revision version lock committed=false
   rt="$COLOR_RUNTIME_HOME"
   [ -d "$rt" ] && [ ! -L "$rt" ] && [ "$(readlink -f "$rt")" = "$rt" ] ||
     { echo 'color update: runtime must be a real absolute directory' >&2; return 1; }
@@ -41,9 +41,31 @@ __color_update_runtime() (
   # A symlink in the runtime could cause a staged write outside the snapshot.
   [ -z "$(find "$rt" -type l -print -quit)" ] ||
     { echo 'color update: symlink inside runtime; refusing to update' >&2; return 1; }
+  lock="$rt.update-lock"
+  mkdir -- "$lock" || { echo 'color update: another update or interrupted update owns the lock' >&2; return 1; }
+  # Restore the prior runtime on normal failure or catchable interruption.
+  # Keep the backup and lock if recovery itself fails.
+  __color_update_cleanup() {
+    local status=$?
+    trap - EXIT INT TERM HUP
+    if ! $committed && [ -n "$backup" ] && [ -d "$backup" ]; then
+      if [ -e "$rt" ]; then
+        mv -- "$rt" "$work/rejected" || { printf 'RECOVERY REQUIRED: prior runtime at %s\n' "$backup" >&2; exit 2; }
+      fi
+      mv -- "$backup" "$rt" || { printf 'RECOVERY REQUIRED: restore %s to %s\n' "$backup" "$rt" >&2; exit 2; }
+      "$rt/validate_color_roles.sh" "$rt/color_roles.json" "$rt/laws/color/color-laws.json" >/dev/null ||
+        { echo 'RECOVERY REQUIRED: restored runtime did not validate' >&2; exit 2; }
+    fi
+    if [ -n "$work" ]; then rm -rf -- "$work"; fi
+    rmdir -- "$lock"
+    exit "$status"
+  }
+  trap __color_update_cleanup EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  trap 'exit 129' HUP
   color_validate || return 1
   work=$(mktemp -d "$(dirname "$rt")/.color-update.XXXXXXXX") || return 1
-  trap 'rm -rf -- "$work"' EXIT
   stage="$work/runtime"
   cp -a -- "$rt" "$stage" || return 1
   diff -qr -- "$rt" "$stage" || return 1
@@ -62,19 +84,16 @@ __color_update_runtime() (
     { echo 'color update: role data changed; candidate rejected' >&2; return 1; }
   "$stage/validate_color_roles.sh" "$stage/color_roles.json" "$stage/laws/color/color-laws.json" || return 1
   printf '%s\n' "$revision" > "$stage/.update-revision"
-  backup=$(mktemp -d "$(dirname "$rt")/.color-backup.XXXXXXXX") || return 1
-  rmdir "$backup" || return 1
+  local backup_dir
+  backup_dir=$(mktemp -d "$(dirname "$rt")/.color-backup.XXXXXXXX") || return 1
+  backup="$backup_dir/runtime"
   mv -- "$rt" "$backup" || return 1
-  if ! mv -- "$stage" "$rt"; then
-    mv -- "$backup" "$rt" || printf 'RECOVERY REQUIRED: restore %s to %s\n' "$backup" "$rt" >&2
-    return 1
-  fi
+  mv -- "$stage" "$rt" || return 1
   if ! ( unset COLOR_RUNTIME_HOME COLOR_ROLE_SCHEMA_PATH COLOR_LAWS_PATH
          # shellcheck source=/dev/null
          . "$rt/colors.source.sh" && [ "$COLOR_SYSTEM_READY" -eq 1 ] && color_validate ); then
-    mv -- "$rt" "$work/rejected" && mv -- "$backup" "$rt" ||
-      printf 'RECOVERY REQUIRED: prior runtime at %s\n' "$backup" >&2
     return 1
   fi
+  committed=true
   printf 'Color %s installed. Previous runtime: %s\n' "$version" "$backup"
 )

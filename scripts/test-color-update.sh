@@ -37,6 +37,32 @@ cmp "$work/bashrc" "$HOME/.bashrc"
 cmp "$work/aliases" "$HOME/.bash_aliases"
 color update > "$work/repeat"
 grep -q 'already current' "$work/repeat"
+# A second updater must refuse while the lock is held.
+mkdir "$rt.update-lock"
+if color update; then echo 'Concurrent update accepted' >&2; exit 1; fi
+rmdir "$rt.update-lock"
+# Force the promotion rename to fail, after the old runtime has been moved.
+sed -i 's/VERSION="3.3.1"/VERSION="3.3.2"/' "$work/upstream/install.sh"
+git -C "$work/upstream" add install.sh
+git -C "$work/upstream" -c user.name=Test -c user.email=test@example.invalid commit -qm promotion
+mkdir "$work/bin"
+export COLOR_TEST_REAL_MV
+COLOR_TEST_REAL_MV=$(command -v mv)
+export COLOR_TEST_RUNTIME="$rt"
+cat > "$work/bin/mv" <<'SH'
+#!/usr/bin/env bash
+if [ "$#" -eq 3 ] && [ "$1" = -- ] && [[ "$2" == */.color-update.*/runtime ]] &&
+   [ "$3" = "$COLOR_TEST_RUNTIME" ]; then
+  exit 1
+fi
+exec "$COLOR_TEST_REAL_MV" "$@"
+SH
+chmod +x "$work/bin/mv"
+if PATH="$work/bin:$PATH" color update; then echo 'Failed promotion reported success' >&2; exit 1; fi
+[ "$(color version)" = 3.3.1 ]
+cmp "$work/roles" "$rt/color_roles.json"
+color validate >/dev/null
+[ ! -e "$rt.update-lock" ]
 # A candidate with a stricter policy rejects the current roles.
 laws="$work/upstream/ctl_environment_template/laws/color/color-laws.json.template"
 jq '.rules.require_contrast_ratio.min_ratio = 21' "$laws" > "$work/laws"
