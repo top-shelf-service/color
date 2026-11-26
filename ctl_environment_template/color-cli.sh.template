@@ -116,7 +116,7 @@ __color_vocabulary() {
 # cache needs repair; status 1 means repair is not known to be safe.
 # Never source the cache or run the loader during diagnosis.
 __color_diagnose() {
-  local mode="${1:-observe}" rt="$COLOR_RUNTIME_HOME" lock f nonregular expected rc=0
+  local mode="${1:-observe}" verbosity="${2:-verbose}" rt="$COLOR_RUNTIME_HOME" lock f nonregular expected rc=0
   lock="$rt.update-lock"
   if [ "$mode" != locked ] && { [ -e "$lock" ] || [ -L "$lock" ]; }; then
     echo 'color doctor: UNKNOWN: transaction lock present; if interrupted, recover manually' >&2
@@ -191,19 +191,25 @@ __color_diagnose() {
     return 1
   fi
   if [ "$rc" -eq 3 ]; then
-    echo 'color doctor: REPAIRABLE: generated role cache missing or stale; run color doctor --fix' >&2
+    if [ "$verbosity" != quiet ]; then
+      echo 'color doctor: REPAIRABLE: generated role cache missing or stale; run color doctor --fix' >&2
+    fi
     return 3
   fi
-  echo 'color doctor: HEALTHY: required files present, policy valid, cache current (not a code-integrity attestation)'
+  if [ "$verbosity" != quiet ]; then
+    echo 'color doctor: HEALTHY: required files present, policy valid, cache current (not a code-integrity attestation)'
+  fi
 }
 
 # A verified cache snapshot is returned under the existing transaction lock.
 # Reload the calling shell from those bytes without a second disk mutation.
 __color_repair_reload() {
-  local snapshot
-  snapshot=$(__color_runtime_transaction repair) || return 1
+  local snapshot verbosity="${1:-verbose}"
+  snapshot=$(__color_runtime_transaction repair "$verbosity") || return 1
   __color_read_cache /dev/stdin <<< "$snapshot" || return 1
-  echo 'Color cache verified; calling shell reloaded.'
+  if [ "$verbosity" != quiet ]; then
+    echo 'Color cache verified; calling shell reloaded.'
+  fi
 }
 
 # Stage the entire existing runtime on the same filesystem. The live copy is
@@ -253,12 +259,12 @@ __color_runtime_transaction() (
   trap 'exit 129' HUP
   if [ "$op" = repair ]; then
     local diagnosis=0
-    __color_diagnose locked >&2 || diagnosis=$?
+    __color_diagnose locked "$snapshot" >&2 || diagnosis=$?
     case "$diagnosis" in
       0) ;;
       3)
         __color_compile_cache || { echo 'color doctor: cache repair failed' >&2; return 1; }
-        __color_diagnose locked >&2 || return 1
+        __color_diagnose locked "$snapshot" >&2 || return 1
         ;;
       *) return 1 ;;
     esac

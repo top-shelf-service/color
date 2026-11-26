@@ -192,8 +192,8 @@ color_roles() {
 }
 
 color_reload() {
-  if declare -F color >/dev/null; then
-    color reload
+  if declare -F __color_repair_reload >/dev/null; then
+    __color_repair_reload quiet
   else
     echo 'color reload: management CLI unavailable; manual recovery required' >&2
     return 1

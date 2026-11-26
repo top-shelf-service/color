@@ -113,7 +113,14 @@ cmp "$work/doctor-original/cache/roles.sh" "$rt/cache/roles.sh"
 # Prove reload updates the calling shell even when cache bytes are current.
 unset 'COLOR_ROLE_HEX[test_custom]'
 if get_color_by_role test_custom; then exit 1; fi
-color_reload
+color_reload > "$work/legacy-reload" 2>&1
+[ ! -s "$work/legacy-reload" ]
+[ "$(get_color_by_role test_custom)" = '#FFAA55' ]
+# Legacy reload must also be silent when it repairs a missing cache.
+rm "$rt/cache/roles.sh"
+color_reload > "$work/legacy-reload" 2>&1
+[ ! -s "$work/legacy-reload" ]
+cmp "$work/doctor-original/cache/roles.sh" "$rt/cache/roles.sh"
 [ "$(get_color_by_role test_custom)" = '#FFAA55' ]
 # Unknown conditions are not repair authorization.
 doctor_refuses() {
@@ -128,6 +135,8 @@ doctor_refuses() {
 }
 mkdir "$rt.update-lock"
 doctor_refuses
+if color_reload > "$work/legacy-reload" 2>&1; then exit 1; fi
+grep -Fq "owns the lock" "$work/legacy-reload"
 [ -d "$rt.update-lock" ]
 rmdir "$rt.update-lock"
 mv "$rt/colors.source.sh" "$work/missing-loader"
