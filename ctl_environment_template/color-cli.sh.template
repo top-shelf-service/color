@@ -45,6 +45,8 @@ __color_update_runtime() (
   mkdir -- "$lock" || { echo 'color update: another update or interrupted update owns the lock' >&2; return 1; }
   # Restore the prior runtime on normal failure or catchable interruption.
   # Keep the backup and lock if recovery itself fails.
+  # Invoked indirectly by the EXIT trap below.
+  # shellcheck disable=SC2329
   __color_update_cleanup() {
     local status=$?
     trap - EXIT INT TERM HUP
