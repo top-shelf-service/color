@@ -138,6 +138,14 @@ jobs:
               || { echo "::error::reinstall destroyed a registered role"; exit 1; }
           )
 
+      - name: "Rendering: semantic filesystem suffixes"
+        run: |
+          (
+            export HOME=$(mktemp -d)
+            ./install.sh >/dev/null
+            bash scripts/test-filesystem-rendering.sh "$HOME/.local/share/tss/color/colors.source.sh"
+          )
+
       - name: "Uninstall: leaves nothing behind, install works after"
         run: |
           (
