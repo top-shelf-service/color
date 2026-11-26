@@ -149,7 +149,10 @@ fi
 command -v nano >/dev/null 2>&1 || $SKIP_NANO || warn "nano not found; syntax files will still be installed."
 
 if $RUNTIME_ONLY; then
-  [ -f "$RUNTIME_DIR/color_roles.json" ] && ! $FORCE || { error "--runtime-only requires an existing runtime and forbids --force."; exit 2; }
+  if [ ! -f "$RUNTIME_DIR/color_roles.json" ] || $FORCE; then
+    error "--runtime-only requires an existing runtime and forbids --force."
+    exit 2
+  fi
 fi
 
 # ------------------------------------------------- migrate legacy layout ----
