@@ -90,10 +90,17 @@ __color_manage_role() {
       # Override the palette only in a subshell; keep the normal renderer
       # (including its TTY check and hierarchy emphasis) as the single path.
       (
+        # Renderer state is deliberately local to this preview subprocess;
+        # color_apply reads these shared arrays from the separately sourced loader.
+        # shellcheck disable=SC2034
+        local -A COLOR_ROLE_HEX=() COLOR_ROLE_ANSI=() COLOR_ROLE_HIERARCHY=()
+        local COLOR_SYSTEM_READY=1
+        # shellcheck disable=SC2034
         COLOR_ROLE_HEX["$role"]="$hex"
+        # shellcheck disable=SC2034
         COLOR_ROLE_ANSI["$role"]="$(hex_to_ansi "$hex")" || exit 1
+        # shellcheck disable=SC2034
         COLOR_ROLE_HIERARCHY["$role"]="$hierarchy"
-        COLOR_SYSTEM_READY=1
         color_apply "$role" "$role $hex"
       )
       return ;;
