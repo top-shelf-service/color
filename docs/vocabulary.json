@@ -1,0 +1,2264 @@
+{
+  "version": "1.0.0",
+  "scope": "Core technical vocabulary for Color: Linux/Bash, source code, data, Git, runtime, network, delivery, security and observability. Not an exhaustive dictionary of computing; no colors or new runtime roles are assigned.",
+  "classification": {
+    "fields": {
+      "role": "Stable rendering identifier; references a concept but need not use its exact singular spelling.",
+      "category": "Functional grouping of a role; separate from structural relationships.",
+      "color_code": "Legacy symbolic color identifier; not a concept or authoritative hex value.",
+      "hex_value": "Foreground RGB representation, separate from the vocabulary.",
+      "hierarchy": "Existing mixed classification label; not an explicit parent-child edge.",
+      "source_type": "Whether a role was shipped (static) or registered (dynamic); not execution behavior.",
+      "app_linked": "Application or context associated with a role.",
+      "install_hook": "Legacy hook identifier; not proof a function or hook executes."
+    },
+    "legacy_hierarchies": {
+      "parent": "Existing Color label for primary containers or interface anchors; not a universal parent relationship.",
+      "child": "Existing Color label for subordinate storage objects; the actual containing object is context-dependent.",
+      "cousin": "Existing Color label for related, functionally distinct objects; not literal filesystem ancestry.",
+      "alert": "Existing Color label for attention-requiring conditions.",
+      "feedback": "Existing Color label for reported outcomes.",
+      "language": "Existing Color label for programming language identity.",
+      "runtime": "Existing Color label for an execution environment."
+    },
+    "legacy_categories": {
+      "infrastructure": "Platform and structural resources.",
+      "interface": "Interaction surface.",
+      "storage": "Stored objects and references.",
+      "automation": "Repeatable executable instructions.",
+      "alert": "Attention-requiring conditions.",
+      "feedback": "Outcome signals.",
+      "development": "Software construction concepts.",
+      "runtime": "Execution environment."
+    },
+    "role_to_term": {
+      "directory": "directory",
+      "prompt": "prompt",
+      "files": "file",
+      "links": "symbolic_link",
+      "scripts": "script",
+      "errors": "error",
+      "warnings": "warning",
+      "success": "success",
+      "typescript": "typescript",
+      "javascript": "javascript",
+      "nodejs": "nodejs"
+    },
+    "relation_types": {
+      "is_a": "Subtype of a general concept.",
+      "contains": "May include an instance of another concept; not mandatory containment.",
+      "references": "Points to or identifies another concept.",
+      "accepts": "May take this kind of input.",
+      "exposes": "Can make this concept accessible.",
+      "created_from": "Constructed from another concept."
+    }
+  },
+  "sources": {
+    "filesystem-1": "https://man7.org/linux/man-pages/man7/symlink.7.html",
+    "filesystem-2": "https://www.kernel.org/doc/html/latest/filesystems/path-lookup.html",
+    "filesystem-3": "https://www.gnu.org/software/coreutils/manual/html_node/",
+    "shell-1": "https://www.gnu.org/software/bash/manual/bash.html",
+    "programming-1": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide",
+    "programming-2": "https://www.typescriptlang.org/docs/handbook/2/everyday-types.html",
+    "data-1": "https://json-schema.org/understanding-json-schema/reference/object",
+    "data-2": "https://www.postgresql.org/docs/current/glossary.html",
+    "version_control-1": "https://git-scm.com/docs/gitglossary",
+    "runtime-1": "https://docs.docker.com/get-started/docker-overview",
+    "runtime-2": "https://freedesktop.org/software/systemd/man/latest/systemd.timer.html",
+    "runtime-3": "https://docs.npmjs.com/specifying-dependencies-and-devdependencies-in-a-package-json-file/",
+    "network-1": "https://www.rfc-editor.org/rfc/rfc9110.html",
+    "network-2": "https://www.rfc-editor.org/rfc/rfc9293.html",
+    "network-3": "https://www.rfc-editor.org/info/rfc7858/",
+    "delivery-1": "https://docs.github.com/en/actions/get-started/understand-github-actions",
+    "delivery-2": "https://opentelemetry.io/docs/concepts/",
+    "security-1": "https://csrc.nist.gov/glossary/term/authentication",
+    "security-2": "https://csrc.nist.gov/glossary/term/authorization",
+    "security-3": "https://csrc.nist.gov/glossary/term/least_privilege",
+    "security-4": "https://csrc.nist.gov/glossary/term/digital_signature",
+    "observability-1": "https://opentelemetry.io/docs/concepts/signals/"
+  },
+  "domains": [
+    {
+      "id": "filesystem",
+      "title": "Filesystem and storage",
+      "definition": "Objects and paths you encounter in Linux listings.",
+      "reference_ids": [
+        "filesystem-1",
+        "filesystem-2",
+        "filesystem-3"
+      ]
+    },
+    {
+      "id": "shell",
+      "title": "Shell and command line",
+      "definition": "How commands are expressed, connected and evaluated.",
+      "reference_ids": [
+        "shell-1"
+      ]
+    },
+    {
+      "id": "programming",
+      "title": "Programming and types",
+      "definition": "Elements within source code, distinct from the identity of the source file.",
+      "reference_ids": [
+        "programming-1",
+        "programming-2"
+      ]
+    },
+    {
+      "id": "data",
+      "title": "Data representation and databases",
+      "definition": "Data structure, storage, integrity and change.",
+      "reference_ids": [
+        "data-1",
+        "data-2"
+      ]
+    },
+    {
+      "id": "version_control",
+      "title": "Version control and collaboration",
+      "definition": "Git objects, references and operations.",
+      "reference_ids": [
+        "version_control-1"
+      ]
+    },
+    {
+      "id": "runtime",
+      "title": "Execution and infrastructure",
+      "definition": "Components that make software run.",
+      "reference_ids": [
+        "runtime-1",
+        "runtime-2",
+        "runtime-3"
+      ]
+    },
+    {
+      "id": "network",
+      "title": "Networking and web interfaces",
+      "definition": "How independent systems communicate.",
+      "reference_ids": [
+        "network-1",
+        "network-2",
+        "network-3"
+      ]
+    },
+    {
+      "id": "delivery",
+      "title": "Automation, testing and evidence",
+      "definition": "Execution and verification vocabulary.",
+      "reference_ids": [
+        "delivery-1",
+        "delivery-2"
+      ]
+    },
+    {
+      "id": "security",
+      "title": "Security and access",
+      "definition": "Identity, trust and permitted operations.",
+      "reference_ids": [
+        "security-1",
+        "security-2",
+        "security-3",
+        "security-4"
+      ]
+    },
+    {
+      "id": "observability",
+      "title": "Observability, outcomes and state",
+      "definition": "Signals and outcome terms, distinct from object identities.",
+      "reference_ids": [
+        "observability-1"
+      ]
+    }
+  ],
+  "terms": [
+    {
+      "id": "filesystem",
+      "domain": "filesystem",
+      "definition": "Organized storage and naming system for files.",
+      "example": "ext4",
+      "aliases": []
+    },
+    {
+      "id": "directory",
+      "domain": "filesystem",
+      "definition": "Container mapping names to filesystem entries.",
+      "example": "src/",
+      "aliases": []
+    },
+    {
+      "id": "file",
+      "domain": "filesystem",
+      "definition": "Regular filesystem object holding a sequence of bytes.",
+      "example": "README.md",
+      "aliases": []
+    },
+    {
+      "id": "symbolic_link",
+      "domain": "filesystem",
+      "definition": "Filesystem entry containing a target pathname.",
+      "example": "current -> releases/v1",
+      "aliases": [
+        "symlink"
+      ]
+    },
+    {
+      "id": "hard_link",
+      "domain": "filesystem",
+      "definition": "Additional name for an existing inode on the same filesystem.",
+      "example": "two names for one file",
+      "aliases": []
+    },
+    {
+      "id": "inode",
+      "domain": "filesystem",
+      "definition": "Filesystem record identifying an object and its metadata.",
+      "example": "stat -c %i README.md",
+      "aliases": []
+    },
+    {
+      "id": "path",
+      "domain": "filesystem",
+      "definition": "Name or sequence of names used to locate a filesystem object.",
+      "example": "/home/user/project",
+      "aliases": [
+        "pathname"
+      ]
+    },
+    {
+      "id": "absolute_path",
+      "domain": "filesystem",
+      "definition": "Path starting at the filesystem root.",
+      "example": "/etc/hosts",
+      "aliases": []
+    },
+    {
+      "id": "relative_path",
+      "domain": "filesystem",
+      "definition": "Path interpreted relative to a starting directory.",
+      "example": "../src",
+      "aliases": []
+    },
+    {
+      "id": "mount",
+      "domain": "filesystem",
+      "definition": "Attachment of a filesystem at a path in the directory hierarchy.",
+      "example": "mount point /mnt/data",
+      "aliases": []
+    },
+    {
+      "id": "file_descriptor",
+      "domain": "filesystem",
+      "definition": "Process-local integer handle for an open resource.",
+      "example": "fd 1",
+      "aliases": [
+        "fd"
+      ]
+    },
+    {
+      "id": "fifo",
+      "domain": "filesystem",
+      "definition": "Named pipe through which processes can exchange bytes.",
+      "example": "mkfifo events",
+      "aliases": [
+        "named pipe"
+      ]
+    },
+    {
+      "id": "permission",
+      "domain": "filesystem",
+      "definition": "Allowed access to an object, such as reading, writing or executing.",
+      "example": "rwx",
+      "aliases": []
+    },
+    {
+      "id": "owner",
+      "domain": "filesystem",
+      "definition": "User identity associated with a filesystem object.",
+      "example": "ls -l owner column",
+      "aliases": []
+    },
+    {
+      "id": "group",
+      "domain": "filesystem",
+      "definition": "Collection of user identities used in access decisions.",
+      "example": "ls -l group column",
+      "aliases": []
+    },
+    {
+      "id": "executable",
+      "domain": "filesystem",
+      "definition": "Attribute indicating permission to attempt execution, not a file format.",
+      "example": "chmod +x script.sh",
+      "aliases": []
+    },
+    {
+      "id": "archive",
+      "domain": "filesystem",
+      "definition": "Single representation containing multiple stored files or entries.",
+      "example": "project.tar",
+      "aliases": []
+    },
+    {
+      "id": "compression",
+      "domain": "filesystem",
+      "definition": "Encoding data to use fewer bytes where possible.",
+      "example": "gzip",
+      "aliases": []
+    },
+    {
+      "id": "checksum",
+      "domain": "filesystem",
+      "definition": "Computed value used to detect changes or corruption.",
+      "example": "sha256sum file",
+      "aliases": []
+    },
+    {
+      "id": "backup",
+      "domain": "filesystem",
+      "definition": "Independent recoverable copy of data or configuration.",
+      "example": "backup of .bashrc",
+      "aliases": []
+    },
+    {
+      "id": "cache",
+      "domain": "filesystem",
+      "definition": "Stored reusable result that avoids repeating work.",
+      "example": "cache/roles.sh",
+      "aliases": []
+    },
+    {
+      "id": "terminal",
+      "domain": "shell",
+      "definition": "Interface that sends input to and displays output from programs.",
+      "example": "ChromeOS Terminal",
+      "aliases": []
+    },
+    {
+      "id": "shell",
+      "domain": "shell",
+      "definition": "Program that interprets commands and manages their execution.",
+      "example": "bash",
+      "aliases": []
+    },
+    {
+      "id": "prompt",
+      "domain": "shell",
+      "definition": "Displayed indication that the shell is ready for input.",
+      "example": "user@host:~$",
+      "aliases": []
+    },
+    {
+      "id": "command",
+      "domain": "shell",
+      "definition": "Invocation of a program, builtin or function.",
+      "example": "git status",
+      "aliases": []
+    },
+    {
+      "id": "builtin",
+      "domain": "shell",
+      "definition": "Command implemented by the shell itself.",
+      "example": "cd",
+      "aliases": []
+    },
+    {
+      "id": "alias",
+      "domain": "shell",
+      "definition": "Shell substitution for a command word.",
+      "example": "gs expands to git status",
+      "aliases": []
+    },
+    {
+      "id": "option",
+      "domain": "shell",
+      "definition": "Argument interpreted as a modifier of command behavior.",
+      "example": "--color=auto",
+      "aliases": [
+        "flag"
+      ]
+    },
+    {
+      "id": "argument",
+      "domain": "shell",
+      "definition": "Value supplied to a command or function invocation.",
+      "example": "README.md in cat README.md",
+      "aliases": []
+    },
+    {
+      "id": "script",
+      "domain": "shell",
+      "definition": "File containing instructions intended for an interpreter.",
+      "example": "install.sh",
+      "aliases": []
+    },
+    {
+      "id": "shebang",
+      "domain": "shell",
+      "definition": "Leading interpreter directive in a Unix executable text file.",
+      "example": "#!/usr/bin/env bash",
+      "aliases": []
+    },
+    {
+      "id": "environment_variable",
+      "domain": "shell",
+      "definition": "Named value exported into a process environment.",
+      "example": "PATH",
+      "aliases": [
+        "env var"
+      ]
+    },
+    {
+      "id": "standard_input",
+      "domain": "shell",
+      "definition": "Conventional input stream, normally descriptor 0.",
+      "example": "stdin",
+      "aliases": [
+        "stdin"
+      ]
+    },
+    {
+      "id": "standard_output",
+      "domain": "shell",
+      "definition": "Conventional normal-output stream, normally descriptor 1.",
+      "example": "stdout",
+      "aliases": [
+        "stdout"
+      ]
+    },
+    {
+      "id": "standard_error",
+      "domain": "shell",
+      "definition": "Conventional diagnostic stream, normally descriptor 2.",
+      "example": "stderr",
+      "aliases": [
+        "stderr"
+      ]
+    },
+    {
+      "id": "pipeline",
+      "domain": "shell",
+      "definition": "Connection carrying output of one command into input of another.",
+      "example": "ls | grep",
+      "aliases": []
+    },
+    {
+      "id": "redirection",
+      "domain": "shell",
+      "definition": "Shell operation connecting an input or output descriptor to a different destination.",
+      "example": "> output.txt",
+      "aliases": []
+    },
+    {
+      "id": "here_document",
+      "domain": "shell",
+      "definition": "Redirection supplying a block of text as input until a delimiter.",
+      "example": "<<EOF",
+      "aliases": [
+        "heredoc"
+      ]
+    },
+    {
+      "id": "command_substitution",
+      "domain": "shell",
+      "definition": "Expansion inserting a command's captured output.",
+      "example": "$(pwd)",
+      "aliases": []
+    },
+    {
+      "id": "parameter_expansion",
+      "domain": "shell",
+      "definition": "Shell substitution or transformation of a parameter's value.",
+      "example": "$HOME",
+      "aliases": []
+    },
+    {
+      "id": "glob",
+      "domain": "shell",
+      "definition": "Filename pattern expanded by the shell.",
+      "example": "*.sh",
+      "aliases": [
+        "wildcard pattern"
+      ]
+    },
+    {
+      "id": "quoting",
+      "domain": "shell",
+      "definition": "Syntax controlling how shell characters are interpreted.",
+      "example": "\"$HOME\"",
+      "aliases": []
+    },
+    {
+      "id": "exit_status",
+      "domain": "shell",
+      "definition": "Numeric completion result of a command.",
+      "example": "$?",
+      "aliases": []
+    },
+    {
+      "id": "subshell",
+      "domain": "shell",
+      "definition": "Separate shell execution environment derived from the calling shell.",
+      "example": "(cd /tmp; pwd)",
+      "aliases": []
+    },
+    {
+      "id": "job",
+      "domain": "shell",
+      "definition": "Shell-managed command or pipeline, possibly in the background.",
+      "example": "jobs",
+      "aliases": []
+    },
+    {
+      "id": "signal",
+      "domain": "shell",
+      "definition": "Notification delivered to a process or thread.",
+      "example": "SIGTERM",
+      "aliases": []
+    },
+    {
+      "id": "process",
+      "domain": "shell",
+      "definition": "Running instance of a program with its own execution context.",
+      "example": "ps",
+      "aliases": []
+    },
+    {
+      "id": "pid",
+      "domain": "shell",
+      "definition": "Numeric process identifier.",
+      "example": "echo $$",
+      "aliases": [
+        "process ID"
+      ]
+    },
+    {
+      "id": "thread",
+      "domain": "shell",
+      "definition": "Execution path within a process sharing process resources.",
+      "example": "worker thread",
+      "aliases": []
+    },
+    {
+      "id": "programming_language",
+      "domain": "programming",
+      "definition": "Formal notation for expressing computation.",
+      "example": "TypeScript",
+      "aliases": []
+    },
+    {
+      "id": "typescript",
+      "domain": "programming",
+      "definition": "Language extending JavaScript with static type syntax.",
+      "example": "const x: number = 1",
+      "aliases": [
+        "TS"
+      ]
+    },
+    {
+      "id": "javascript",
+      "domain": "programming",
+      "definition": "Programming language standardized as ECMAScript.",
+      "example": "const x = 1",
+      "aliases": [
+        "JS"
+      ]
+    },
+    {
+      "id": "identifier",
+      "domain": "programming",
+      "definition": "Name used to refer to a declared or accessible program entity.",
+      "example": "userId",
+      "aliases": []
+    },
+    {
+      "id": "variable",
+      "domain": "programming",
+      "definition": "Named binding whose value can be used in a program.",
+      "example": "let count = 0",
+      "aliases": []
+    },
+    {
+      "id": "constant",
+      "domain": "programming",
+      "definition": "Binding or value intended not to be reassigned; object contents may still change.",
+      "example": "const settings = {}",
+      "aliases": []
+    },
+    {
+      "id": "literal",
+      "domain": "programming",
+      "definition": "Source notation directly expressing a value.",
+      "example": "42",
+      "aliases": []
+    },
+    {
+      "id": "value",
+      "domain": "programming",
+      "definition": "Data represented or manipulated by a program.",
+      "example": "true",
+      "aliases": []
+    },
+    {
+      "id": "type",
+      "domain": "programming",
+      "definition": "Classification describing allowable values or operations.",
+      "example": "number",
+      "aliases": []
+    },
+    {
+      "id": "string",
+      "domain": "programming",
+      "definition": "Sequence of textual units.",
+      "example": "\"hello\"",
+      "aliases": []
+    },
+    {
+      "id": "number",
+      "domain": "programming",
+      "definition": "Numeric value; representation depends on the language.",
+      "example": "42",
+      "aliases": []
+    },
+    {
+      "id": "boolean",
+      "domain": "programming",
+      "definition": "Logical value of true or false.",
+      "example": "false",
+      "aliases": []
+    },
+    {
+      "id": "null",
+      "domain": "programming",
+      "definition": "Explicit representation of no value in languages that provide it.",
+      "example": "null",
+      "aliases": []
+    },
+    {
+      "id": "undefined",
+      "domain": "programming",
+      "definition": "JavaScript value typically indicating no assigned or provided value.",
+      "example": "undefined",
+      "aliases": []
+    },
+    {
+      "id": "array",
+      "domain": "programming",
+      "definition": "Indexed collection of elements.",
+      "example": "[1,2]",
+      "aliases": []
+    },
+    {
+      "id": "object",
+      "domain": "programming",
+      "definition": "JavaScript entity holding properties; other languages define objects differently.",
+      "example": "{name: \"Ada\"}",
+      "aliases": []
+    },
+    {
+      "id": "property",
+      "domain": "programming",
+      "definition": "Named member of an object.",
+      "example": "user.name",
+      "aliases": []
+    },
+    {
+      "id": "key",
+      "domain": "programming",
+      "definition": "Identifier used to access an entry in a mapping.",
+      "example": "name in {\"name\":\"Ada\"}",
+      "aliases": []
+    },
+    {
+      "id": "expression",
+      "domain": "programming",
+      "definition": "Code that evaluates to a value.",
+      "example": "a + b",
+      "aliases": []
+    },
+    {
+      "id": "statement",
+      "domain": "programming",
+      "definition": "Syntactic instruction in a program.",
+      "example": "return x;",
+      "aliases": []
+    },
+    {
+      "id": "operator",
+      "domain": "programming",
+      "definition": "Syntax denoting an operation on operands.",
+      "example": "+",
+      "aliases": []
+    },
+    {
+      "id": "assignment",
+      "domain": "programming",
+      "definition": "Operation setting a binding or storage location to a value.",
+      "example": "x = 3",
+      "aliases": []
+    },
+    {
+      "id": "declaration",
+      "domain": "programming",
+      "definition": "Syntax introducing a binding or named program entity.",
+      "example": "let x;",
+      "aliases": []
+    },
+    {
+      "id": "function",
+      "domain": "programming",
+      "definition": "Callable block of behavior that can accept inputs and produce a result.",
+      "example": "function add(a,b) {}",
+      "aliases": []
+    },
+    {
+      "id": "parameter",
+      "domain": "programming",
+      "definition": "Named input in a function definition.",
+      "example": "a in add(a,b)",
+      "aliases": []
+    },
+    {
+      "id": "return_value",
+      "domain": "programming",
+      "definition": "Value produced by a function call.",
+      "example": "return 42",
+      "aliases": []
+    },
+    {
+      "id": "scope",
+      "domain": "programming",
+      "definition": "Region in which a binding can be accessed.",
+      "example": "block scope",
+      "aliases": []
+    },
+    {
+      "id": "closure",
+      "domain": "programming",
+      "definition": "Function retaining access to its surrounding lexical bindings.",
+      "example": "counter factory",
+      "aliases": []
+    },
+    {
+      "id": "condition",
+      "domain": "programming",
+      "definition": "Expression evaluated to choose behavior.",
+      "example": "if (ready)",
+      "aliases": []
+    },
+    {
+      "id": "branching",
+      "domain": "programming",
+      "definition": "Selecting one execution path from alternatives.",
+      "example": "if/else",
+      "aliases": []
+    },
+    {
+      "id": "loop",
+      "domain": "programming",
+      "definition": "Control structure repeating work.",
+      "example": "for (...)",
+      "aliases": []
+    },
+    {
+      "id": "exception",
+      "domain": "programming",
+      "definition": "Raised condition that transfers control to error handling.",
+      "example": "throw new Error()",
+      "aliases": []
+    },
+    {
+      "id": "class",
+      "domain": "programming",
+      "definition": "Definition used to describe or construct objects.",
+      "example": "class User {}",
+      "aliases": []
+    },
+    {
+      "id": "instance",
+      "domain": "programming",
+      "definition": "Object created from a class or other constructor.",
+      "example": "new User()",
+      "aliases": []
+    },
+    {
+      "id": "method",
+      "domain": "programming",
+      "definition": "Function associated with an object or class.",
+      "example": "user.save()",
+      "aliases": []
+    },
+    {
+      "id": "interface",
+      "domain": "programming",
+      "definition": "TypeScript declaration describing an object shape or callable structure.",
+      "example": "interface User {}",
+      "aliases": []
+    },
+    {
+      "id": "type_alias",
+      "domain": "programming",
+      "definition": "Name assigned to a TypeScript type expression.",
+      "example": "type Id = string",
+      "aliases": []
+    },
+    {
+      "id": "generic",
+      "domain": "programming",
+      "definition": "Type or function parameterized over one or more types.",
+      "example": "Array<T>",
+      "aliases": []
+    },
+    {
+      "id": "module",
+      "domain": "programming",
+      "definition": "Unit of code with its own boundary and potentially imports or exports.",
+      "example": "utils.ts",
+      "aliases": []
+    },
+    {
+      "id": "import",
+      "domain": "programming",
+      "definition": "Declaration or operation making another module's exports accessible.",
+      "example": "import {read} from \"./io\"",
+      "aliases": []
+    },
+    {
+      "id": "export",
+      "domain": "programming",
+      "definition": "Declaration exposing a binding from a module.",
+      "example": "export const x = 1",
+      "aliases": []
+    },
+    {
+      "id": "comment",
+      "domain": "programming",
+      "definition": "Source text intended for readers rather than execution.",
+      "example": "// explanation",
+      "aliases": []
+    },
+    {
+      "id": "regular_expression",
+      "domain": "programming",
+      "definition": "Pattern language for matching text.",
+      "example": "/^[a-z]+$/",
+      "aliases": [
+        "regex"
+      ]
+    },
+    {
+      "id": "promise",
+      "domain": "programming",
+      "definition": "JavaScript object representing an eventual operation result or rejection.",
+      "example": "fetch(url)",
+      "aliases": []
+    },
+    {
+      "id": "async_function",
+      "domain": "programming",
+      "definition": "Function whose invocation returns a promise in JavaScript.",
+      "example": "async function run() {}",
+      "aliases": []
+    },
+    {
+      "id": "await",
+      "domain": "programming",
+      "definition": "Syntax waiting for a promise's settlement within an appropriate async context.",
+      "example": "await run()",
+      "aliases": []
+    },
+    {
+      "id": "compiler",
+      "domain": "programming",
+      "definition": "Tool translating source into another representation.",
+      "example": "tsc",
+      "aliases": []
+    },
+    {
+      "id": "interpreter",
+      "domain": "programming",
+      "definition": "Program executing instructions expressed in a source or intermediate language.",
+      "example": "bash interpreting a script",
+      "aliases": []
+    },
+    {
+      "id": "syntax",
+      "domain": "programming",
+      "definition": "Rules governing the structure of valid source text.",
+      "example": "balanced delimiters",
+      "aliases": []
+    },
+    {
+      "id": "semantics",
+      "domain": "programming",
+      "definition": "Meaning or behavior of a syntactically valid construct.",
+      "example": "what assignment changes",
+      "aliases": []
+    },
+    {
+      "id": "json",
+      "domain": "data",
+      "definition": "Text format for representing structured data.",
+      "example": "{\"role\":\"files\"}",
+      "aliases": []
+    },
+    {
+      "id": "yaml",
+      "domain": "data",
+      "definition": "Text serialization format frequently used for configuration.",
+      "example": "workflow.yml",
+      "aliases": []
+    },
+    {
+      "id": "schema",
+      "domain": "data",
+      "definition": "Description of the structure and constraints of data; in SQL also a namespace.",
+      "example": "color role schema",
+      "aliases": []
+    },
+    {
+      "id": "validation",
+      "domain": "data",
+      "definition": "Checking data or behavior against specified rules.",
+      "example": "validate_color_roles.sh",
+      "aliases": []
+    },
+    {
+      "id": "constraint",
+      "domain": "data",
+      "definition": "Rule restricting permitted values or relationships.",
+      "example": "NOT NULL",
+      "aliases": []
+    },
+    {
+      "id": "database",
+      "domain": "data",
+      "definition": "Organized data store managed for retrieval and modification.",
+      "example": "PostgreSQL database",
+      "aliases": []
+    },
+    {
+      "id": "table",
+      "domain": "data",
+      "definition": "Relational structure organizing data in rows and columns.",
+      "example": "users",
+      "aliases": []
+    },
+    {
+      "id": "row",
+      "domain": "data",
+      "definition": "One set of column values in a table.",
+      "example": "one user record",
+      "aliases": [
+        "record"
+      ]
+    },
+    {
+      "id": "column",
+      "domain": "data",
+      "definition": "Named attribute of a table with a declared data type.",
+      "example": "user_id",
+      "aliases": []
+    },
+    {
+      "id": "primary_key",
+      "domain": "data",
+      "definition": "Column or columns uniquely identifying rows and disallowing nulls.",
+      "example": "PRIMARY KEY (id)",
+      "aliases": [
+        "PK"
+      ]
+    },
+    {
+      "id": "foreign_key",
+      "domain": "data",
+      "definition": "Constraint linking values to a referenced unique or primary key.",
+      "example": "REFERENCES users(id)",
+      "aliases": [
+        "FK"
+      ]
+    },
+    {
+      "id": "index",
+      "domain": "data",
+      "definition": "Data structure supporting efficient lookup or other database operations.",
+      "example": "CREATE INDEX",
+      "aliases": []
+    },
+    {
+      "id": "query",
+      "domain": "data",
+      "definition": "Request to retrieve or manipulate data.",
+      "example": "SELECT * FROM users",
+      "aliases": []
+    },
+    {
+      "id": "transaction",
+      "domain": "data",
+      "definition": "Unit of database work that commits or rolls back as a group.",
+      "example": "BEGIN; COMMIT",
+      "aliases": []
+    },
+    {
+      "id": "commit_transaction",
+      "domain": "data",
+      "definition": "Make a database transaction's changes permanent according to database guarantees.",
+      "example": "COMMIT",
+      "aliases": []
+    },
+    {
+      "id": "rollback",
+      "domain": "data",
+      "definition": "Undo uncommitted transaction changes; in deployment, restore an earlier state.",
+      "example": "ROLLBACK",
+      "aliases": []
+    },
+    {
+      "id": "migration",
+      "domain": "data",
+      "definition": "Controlled change to a database schema or other versioned data format.",
+      "example": "add column",
+      "aliases": []
+    },
+    {
+      "id": "view",
+      "domain": "data",
+      "definition": "Named database query presented as a relation.",
+      "example": "CREATE VIEW",
+      "aliases": []
+    },
+    {
+      "id": "join",
+      "domain": "data",
+      "definition": "Operation combining rows from relations using a matching condition.",
+      "example": "INNER JOIN",
+      "aliases": []
+    },
+    {
+      "id": "replica",
+      "domain": "data",
+      "definition": "Database copy maintained from another database.",
+      "example": "read replica",
+      "aliases": []
+    },
+    {
+      "id": "connection_pool",
+      "domain": "data",
+      "definition": "Reusable set of database connections.",
+      "example": "pooler",
+      "aliases": []
+    },
+    {
+      "id": "lock",
+      "domain": "data",
+      "definition": "Mechanism restricting concurrent access to a resource.",
+      "example": "row lock",
+      "aliases": []
+    },
+    {
+      "id": "deadlock",
+      "domain": "data",
+      "definition": "Cycle of waiting operations that prevents progress without intervention.",
+      "example": "two transactions waiting on each other",
+      "aliases": []
+    },
+    {
+      "id": "serialization",
+      "domain": "data",
+      "definition": "Encoding data into a representation suitable for storage or transfer.",
+      "example": "JSON.stringify",
+      "aliases": []
+    },
+    {
+      "id": "nullability",
+      "domain": "data",
+      "definition": "Whether a field or type permits a null value.",
+      "example": "nullable column",
+      "aliases": []
+    },
+    {
+      "id": "repository",
+      "domain": "version_control",
+      "definition": "Git object database and references, with optional working tree.",
+      "example": "~/color",
+      "aliases": [
+        "repo"
+      ]
+    },
+    {
+      "id": "working_tree",
+      "domain": "version_control",
+      "definition": "Checked-out files plus local changes.",
+      "example": "git status",
+      "aliases": []
+    },
+    {
+      "id": "git_index",
+      "domain": "version_control",
+      "definition": "Git staging structure describing the next proposed snapshot.",
+      "example": "git add",
+      "aliases": [
+        "staging area"
+      ]
+    },
+    {
+      "id": "commit",
+      "domain": "version_control",
+      "definition": "Git object recording a tree, parent links and metadata.",
+      "example": "git show HEAD",
+      "aliases": []
+    },
+    {
+      "id": "branch",
+      "domain": "version_control",
+      "definition": "Movable Git reference to a commit representing a line of work.",
+      "example": "main",
+      "aliases": []
+    },
+    {
+      "id": "ref",
+      "domain": "version_control",
+      "definition": "Named pointer to a Git object.",
+      "example": "refs/heads/main",
+      "aliases": [
+        "reference"
+      ]
+    },
+    {
+      "id": "head",
+      "domain": "version_control",
+      "definition": "Git reference naming the current checkout or directly its commit.",
+      "example": "HEAD",
+      "aliases": []
+    },
+    {
+      "id": "tag",
+      "domain": "version_control",
+      "definition": "Named reference conventionally used to mark a particular revision.",
+      "example": "v3.1.2",
+      "aliases": []
+    },
+    {
+      "id": "remote",
+      "domain": "version_control",
+      "definition": "Named configuration for another repository location.",
+      "example": "origin",
+      "aliases": []
+    },
+    {
+      "id": "clone",
+      "domain": "version_control",
+      "definition": "Create a local repository from another repository.",
+      "example": "git clone",
+      "aliases": []
+    },
+    {
+      "id": "fetch",
+      "domain": "version_control",
+      "definition": "Download remote Git objects and update configured tracking references.",
+      "example": "git fetch origin",
+      "aliases": []
+    },
+    {
+      "id": "pull",
+      "domain": "version_control",
+      "definition": "Fetch followed by integration into the current branch.",
+      "example": "git pull --ff-only",
+      "aliases": []
+    },
+    {
+      "id": "push",
+      "domain": "version_control",
+      "definition": "Send objects and request updates to remote references.",
+      "example": "git push",
+      "aliases": []
+    },
+    {
+      "id": "merge",
+      "domain": "version_control",
+      "definition": "Integrate histories, often creating a commit with multiple parents.",
+      "example": "git merge feature",
+      "aliases": []
+    },
+    {
+      "id": "rebase",
+      "domain": "version_control",
+      "definition": "Replay commits onto a different base, usually changing their identities.",
+      "example": "git rebase main",
+      "aliases": []
+    },
+    {
+      "id": "diff",
+      "domain": "version_control",
+      "definition": "Representation of differences between two states.",
+      "example": "git diff",
+      "aliases": []
+    },
+    {
+      "id": "conflict",
+      "domain": "version_control",
+      "definition": "Incompatible changes requiring resolution before integration can finish.",
+      "example": "unmerged path",
+      "aliases": []
+    },
+    {
+      "id": "pull_request",
+      "domain": "version_control",
+      "definition": "Proposal to review and integrate changes between branches on a hosting platform.",
+      "example": "PR #12",
+      "aliases": [
+        "PR"
+      ]
+    },
+    {
+      "id": "review",
+      "domain": "version_control",
+      "definition": "Inspection of proposed changes for correctness and suitability.",
+      "example": "code review",
+      "aliases": []
+    },
+    {
+      "id": "commit_hash",
+      "domain": "version_control",
+      "definition": "Object identifier for a particular Git commit.",
+      "example": "2336cc8",
+      "aliases": []
+    },
+    {
+      "id": "stash",
+      "domain": "version_control",
+      "definition": "Saved working-tree and index changes that can be reapplied.",
+      "example": "git stash",
+      "aliases": []
+    },
+    {
+      "id": "checkout",
+      "domain": "version_control",
+      "definition": "Populate or switch checked-out content from a Git reference or path.",
+      "example": "git checkout main",
+      "aliases": []
+    },
+    {
+      "id": "cherry_pick",
+      "domain": "version_control",
+      "definition": "Apply changes introduced by a selected commit to another history.",
+      "example": "git cherry-pick SHA",
+      "aliases": []
+    },
+    {
+      "id": "revert",
+      "domain": "version_control",
+      "definition": "Create a new commit reversing changes from an earlier commit.",
+      "example": "git revert SHA",
+      "aliases": []
+    },
+    {
+      "id": "runtime",
+      "domain": "runtime",
+      "definition": "Execution environment providing facilities needed by a program.",
+      "example": "Node.js",
+      "aliases": []
+    },
+    {
+      "id": "nodejs",
+      "domain": "runtime",
+      "definition": "JavaScript runtime built around V8 and system APIs.",
+      "example": "node app.js",
+      "aliases": [
+        "Node.js"
+      ]
+    },
+    {
+      "id": "kernel",
+      "domain": "runtime",
+      "definition": "Core operating-system component managing hardware and process resources.",
+      "example": "Linux kernel",
+      "aliases": []
+    },
+    {
+      "id": "operating_system",
+      "domain": "runtime",
+      "definition": "System software managing resources and providing an execution environment.",
+      "example": "Debian",
+      "aliases": [
+        "OS"
+      ]
+    },
+    {
+      "id": "host",
+      "domain": "runtime",
+      "definition": "Machine or environment providing resources to another workload.",
+      "example": "container host",
+      "aliases": []
+    },
+    {
+      "id": "virtual_machine",
+      "domain": "runtime",
+      "definition": "Software-defined computer running a guest operating system.",
+      "example": "VM",
+      "aliases": [
+        "VM"
+      ]
+    },
+    {
+      "id": "image",
+      "domain": "runtime",
+      "definition": "Packaged Docker filesystem and configuration used to create containers.",
+      "example": "node:22",
+      "aliases": []
+    },
+    {
+      "id": "container",
+      "domain": "runtime",
+      "definition": "Isolated runnable instance created from a container image.",
+      "example": "docker run",
+      "aliases": []
+    },
+    {
+      "id": "dockerfile",
+      "domain": "runtime",
+      "definition": "Instruction file describing how Docker builds an image.",
+      "example": "Dockerfile",
+      "aliases": []
+    },
+    {
+      "id": "layer",
+      "domain": "runtime",
+      "definition": "Filesystem changeset contributing to a container image.",
+      "example": "image layer",
+      "aliases": []
+    },
+    {
+      "id": "volume",
+      "domain": "runtime",
+      "definition": "Storage managed separately from a container lifecycle.",
+      "example": "docker volume",
+      "aliases": []
+    },
+    {
+      "id": "bind_mount",
+      "domain": "runtime",
+      "definition": "Mapping a host filesystem path into a container.",
+      "example": "-v /host:/app",
+      "aliases": []
+    },
+    {
+      "id": "registry",
+      "domain": "runtime",
+      "definition": "Service storing and distributing container images.",
+      "example": "Docker Hub",
+      "aliases": []
+    },
+    {
+      "id": "service",
+      "domain": "runtime",
+      "definition": "Managed capability or workload made available to consumers.",
+      "example": "web service",
+      "aliases": []
+    },
+    {
+      "id": "daemon",
+      "domain": "runtime",
+      "definition": "Background process providing ongoing functionality.",
+      "example": "dockerd",
+      "aliases": []
+    },
+    {
+      "id": "worker",
+      "domain": "runtime",
+      "definition": "Execution component consuming work from a queue or scheduler.",
+      "example": "job worker",
+      "aliases": []
+    },
+    {
+      "id": "scheduler",
+      "domain": "runtime",
+      "definition": "Component selecting when or where work runs.",
+      "example": "systemd timer",
+      "aliases": []
+    },
+    {
+      "id": "timer",
+      "domain": "runtime",
+      "definition": "Time-based trigger for work or another unit.",
+      "example": "backup.timer",
+      "aliases": []
+    },
+    {
+      "id": "unit",
+      "domain": "runtime",
+      "definition": "Resource managed by systemd, such as a service or timer.",
+      "example": "nginx.service",
+      "aliases": []
+    },
+    {
+      "id": "package",
+      "domain": "runtime",
+      "definition": "Distribution unit containing software and metadata.",
+      "example": "pnpm package",
+      "aliases": []
+    },
+    {
+      "id": "dependency",
+      "domain": "runtime",
+      "definition": "Component required by another component to build or run.",
+      "example": "package dependency",
+      "aliases": []
+    },
+    {
+      "id": "lockfile",
+      "domain": "runtime",
+      "definition": "Recorded resolved dependency versions and associated metadata.",
+      "example": "pnpm-lock.yaml",
+      "aliases": []
+    },
+    {
+      "id": "manifest",
+      "domain": "runtime",
+      "definition": "Structured declaration of a package or workload's metadata and requirements.",
+      "example": "package.json",
+      "aliases": []
+    },
+    {
+      "id": "configuration",
+      "domain": "runtime",
+      "definition": "Settings determining system behavior without changing its implementation.",
+      "example": "config.json",
+      "aliases": []
+    },
+    {
+      "id": "environment",
+      "domain": "runtime",
+      "definition": "Context of settings and resources in which work executes.",
+      "example": "production",
+      "aliases": []
+    },
+    {
+      "id": "build",
+      "domain": "runtime",
+      "definition": "Transformation of source and dependencies into usable output.",
+      "example": "pnpm build",
+      "aliases": []
+    },
+    {
+      "id": "deployment",
+      "domain": "runtime",
+      "definition": "Making a selected software version available in an environment.",
+      "example": "production deployment",
+      "aliases": []
+    },
+    {
+      "id": "release",
+      "domain": "runtime",
+      "definition": "Version of software made available to intended consumers.",
+      "example": "v3.1.2",
+      "aliases": []
+    },
+    {
+      "id": "artifact",
+      "domain": "runtime",
+      "definition": "Produced file or bundle retained for later use or inspection.",
+      "example": "build.tar.gz",
+      "aliases": []
+    },
+    {
+      "id": "network",
+      "domain": "network",
+      "definition": "Connected systems capable of exchanging data.",
+      "example": "LAN",
+      "aliases": []
+    },
+    {
+      "id": "ip_address",
+      "domain": "network",
+      "definition": "Network-layer identifier used for routing to an interface or endpoint.",
+      "example": "192.0.2.1",
+      "aliases": [
+        "IP"
+      ]
+    },
+    {
+      "id": "port",
+      "domain": "network",
+      "definition": "Transport-layer number distinguishing communication endpoints on a host.",
+      "example": "443",
+      "aliases": []
+    },
+    {
+      "id": "socket",
+      "domain": "network",
+      "definition": "Operating-system communication endpoint used by processes.",
+      "example": "TCP socket",
+      "aliases": []
+    },
+    {
+      "id": "protocol",
+      "domain": "network",
+      "definition": "Agreed rules for exchanging information.",
+      "example": "HTTP",
+      "aliases": []
+    },
+    {
+      "id": "tcp",
+      "domain": "network",
+      "definition": "Connection-oriented transport protocol providing reliable ordered byte delivery.",
+      "example": "TCP connection",
+      "aliases": []
+    },
+    {
+      "id": "dns",
+      "domain": "network",
+      "definition": "Distributed naming system resolving domain names and other records.",
+      "example": "example.com lookup",
+      "aliases": []
+    },
+    {
+      "id": "domain_name",
+      "domain": "network",
+      "definition": "Hierarchically structured name used by DNS.",
+      "example": "example.com",
+      "aliases": []
+    },
+    {
+      "id": "tls",
+      "domain": "network",
+      "definition": "Protocol providing a protected communication channel with authentication and integrity.",
+      "example": "TLS handshake",
+      "aliases": []
+    },
+    {
+      "id": "http",
+      "domain": "network",
+      "definition": "Application protocol defining requests, responses and their semantics.",
+      "example": "GET /health",
+      "aliases": []
+    },
+    {
+      "id": "https",
+      "domain": "network",
+      "definition": "HTTP communication secured using TLS.",
+      "example": "https://example.com",
+      "aliases": []
+    },
+    {
+      "id": "url",
+      "domain": "network",
+      "definition": "Identifier specifying a resource location and access scheme.",
+      "example": "https://example.com/api",
+      "aliases": []
+    },
+    {
+      "id": "client",
+      "domain": "network",
+      "definition": "Participant initiating requests to a service in a client-server interaction.",
+      "example": "browser",
+      "aliases": []
+    },
+    {
+      "id": "server",
+      "domain": "network",
+      "definition": "Participant receiving requests and providing responses or services.",
+      "example": "web server",
+      "aliases": []
+    },
+    {
+      "id": "api",
+      "domain": "network",
+      "definition": "Defined interface through which software components interact.",
+      "example": "REST API",
+      "aliases": []
+    },
+    {
+      "id": "endpoint",
+      "domain": "network",
+      "definition": "Address or exposed operation at which a service accepts interaction.",
+      "example": "/api/users",
+      "aliases": []
+    },
+    {
+      "id": "request",
+      "domain": "network",
+      "definition": "Message asking a server to perform or return something.",
+      "example": "GET /users",
+      "aliases": []
+    },
+    {
+      "id": "response",
+      "domain": "network",
+      "definition": "Message returned in answer to a request.",
+      "example": "HTTP 200",
+      "aliases": []
+    },
+    {
+      "id": "http_method",
+      "domain": "network",
+      "definition": "Request token expressing the intended HTTP operation.",
+      "example": "GET",
+      "aliases": []
+    },
+    {
+      "id": "http_status",
+      "domain": "network",
+      "definition": "Numeric HTTP response code indicating request outcome.",
+      "example": "404",
+      "aliases": []
+    },
+    {
+      "id": "header",
+      "domain": "network",
+      "definition": "Named protocol metadata carried with a message.",
+      "example": "Content-Type",
+      "aliases": []
+    },
+    {
+      "id": "payload",
+      "domain": "network",
+      "definition": "Content carried by a message, distinguished from protocol framing or metadata.",
+      "example": "JSON request body",
+      "aliases": []
+    },
+    {
+      "id": "proxy",
+      "domain": "network",
+      "definition": "Intermediary forwarding or handling communication for another participant.",
+      "example": "reverse proxy",
+      "aliases": []
+    },
+    {
+      "id": "webhook",
+      "domain": "network",
+      "definition": "Event-driven HTTP callback to a configured receiver.",
+      "example": "GitHub push webhook",
+      "aliases": []
+    },
+    {
+      "id": "timeout",
+      "domain": "network",
+      "definition": "Configured limit on how long an operation may wait.",
+      "example": "30s",
+      "aliases": []
+    },
+    {
+      "id": "latency",
+      "domain": "network",
+      "definition": "Elapsed time for a particular operation or transmission.",
+      "example": "request duration",
+      "aliases": []
+    },
+    {
+      "id": "retry",
+      "domain": "network",
+      "definition": "Another attempt at an operation after a prior unsuccessful attempt.",
+      "example": "retry after timeout",
+      "aliases": []
+    },
+    {
+      "id": "workflow",
+      "domain": "delivery",
+      "definition": "Defined sequence or graph of coordinated work.",
+      "example": "CI workflow",
+      "aliases": []
+    },
+    {
+      "id": "trigger",
+      "domain": "delivery",
+      "definition": "Event or condition initiating work.",
+      "example": "push event",
+      "aliases": []
+    },
+    {
+      "id": "action",
+      "domain": "delivery",
+      "definition": "Reusable GitHub Actions execution component, or a general operation in context.",
+      "example": "actions/checkout",
+      "aliases": []
+    },
+    {
+      "id": "job_runner",
+      "domain": "delivery",
+      "definition": "Machine or execution environment running workflow jobs.",
+      "example": "ubuntu runner",
+      "aliases": [
+        "runner"
+      ]
+    },
+    {
+      "id": "workflow_job",
+      "domain": "delivery",
+      "definition": "Group of workflow steps executed on a runner.",
+      "example": "check job",
+      "aliases": []
+    },
+    {
+      "id": "step",
+      "domain": "delivery",
+      "definition": "Individual ordered operation within a workflow job.",
+      "example": "run tests",
+      "aliases": []
+    },
+    {
+      "id": "ci",
+      "domain": "delivery",
+      "definition": "Practice of regularly integrating changes and automatically checking them.",
+      "example": "GitHub Actions CI",
+      "aliases": [
+        "continuous integration"
+      ]
+    },
+    {
+      "id": "cd_delivery",
+      "domain": "delivery",
+      "definition": "Practice of keeping validated changes ready for release; deployment may require approval.",
+      "example": "release pipeline",
+      "aliases": [
+        "continuous delivery"
+      ]
+    },
+    {
+      "id": "cd_deployment",
+      "domain": "delivery",
+      "definition": "Practice of automatically deploying changes that pass required gates.",
+      "example": "automatic production deployment",
+      "aliases": [
+        "continuous deployment"
+      ]
+    },
+    {
+      "id": "test",
+      "domain": "delivery",
+      "definition": "Executable or defined check of expected behavior.",
+      "example": "unit test",
+      "aliases": []
+    },
+    {
+      "id": "assertion",
+      "domain": "delivery",
+      "definition": "Expression or check stating a condition that must hold.",
+      "example": "assert result === 0",
+      "aliases": []
+    },
+    {
+      "id": "unit_test",
+      "domain": "delivery",
+      "definition": "Check focused on a small isolated behavior.",
+      "example": "function test",
+      "aliases": []
+    },
+    {
+      "id": "integration_test",
+      "domain": "delivery",
+      "definition": "Check of interactions between components.",
+      "example": "database API test",
+      "aliases": []
+    },
+    {
+      "id": "end_to_end_test",
+      "domain": "delivery",
+      "definition": "Check of a complete user or system flow.",
+      "example": "browser login test",
+      "aliases": [
+        "E2E"
+      ]
+    },
+    {
+      "id": "regression_test",
+      "domain": "delivery",
+      "definition": "Check protecting previously expected behavior from recurrence of a defect.",
+      "example": "suffix inheritance test",
+      "aliases": []
+    },
+    {
+      "id": "smoke_test",
+      "domain": "delivery",
+      "definition": "Small set of checks that a system starts and basic behavior works.",
+      "example": "health endpoint check",
+      "aliases": []
+    },
+    {
+      "id": "lint",
+      "domain": "delivery",
+      "definition": "Static check for code patterns, errors or conventions.",
+      "example": "ShellCheck",
+      "aliases": []
+    },
+    {
+      "id": "gate",
+      "domain": "delivery",
+      "definition": "Condition that must be satisfied before progression.",
+      "example": "required CI checks",
+      "aliases": []
+    },
+    {
+      "id": "fixture",
+      "domain": "delivery",
+      "definition": "Controlled input or environment prepared for a test.",
+      "example": "temporary directory",
+      "aliases": []
+    },
+    {
+      "id": "sandbox",
+      "domain": "delivery",
+      "definition": "Isolated environment for controlled experimentation.",
+      "example": "temporary test container",
+      "aliases": []
+    },
+    {
+      "id": "evidence",
+      "domain": "delivery",
+      "definition": "Traceable observation supporting a claim.",
+      "example": "CI run output",
+      "aliases": []
+    },
+    {
+      "id": "checkpoint",
+      "domain": "delivery",
+      "definition": "Recorded state permitting verification or resumption.",
+      "example": "exact commit and remaining work",
+      "aliases": []
+    },
+    {
+      "id": "idempotency",
+      "domain": "delivery",
+      "definition": "Property of repeated equivalent operations producing the same intended effect.",
+      "example": "re-running installer",
+      "aliases": []
+    },
+    {
+      "id": "concurrency",
+      "domain": "delivery",
+      "definition": "Overlapping progress of multiple tasks.",
+      "example": "two requests",
+      "aliases": []
+    },
+    {
+      "id": "parallelism",
+      "domain": "delivery",
+      "definition": "Simultaneous execution of multiple tasks.",
+      "example": "two independent jobs",
+      "aliases": []
+    },
+    {
+      "id": "race_condition",
+      "domain": "delivery",
+      "definition": "Behavior dependent on uncontrolled ordering of concurrent events.",
+      "example": "two writes to one file",
+      "aliases": []
+    },
+    {
+      "id": "queue",
+      "domain": "delivery",
+      "definition": "Structure holding work until it can be processed.",
+      "example": "pending job queue",
+      "aliases": []
+    },
+    {
+      "id": "lease",
+      "domain": "delivery",
+      "definition": "Time-limited grant of control over a resource or task.",
+      "example": "worker lease",
+      "aliases": []
+    },
+    {
+      "id": "heartbeat",
+      "domain": "delivery",
+      "definition": "Periodic signal indicating continued activity or availability.",
+      "example": "worker heartbeat",
+      "aliases": []
+    },
+    {
+      "id": "rollback_plan",
+      "domain": "delivery",
+      "definition": "Defined procedure for restoring an earlier known-good state.",
+      "example": "redeploy prior version",
+      "aliases": []
+    },
+    {
+      "id": "authentication",
+      "domain": "security",
+      "definition": "Establishing that an asserted identity is genuine.",
+      "example": "sign in",
+      "aliases": []
+    },
+    {
+      "id": "authorization",
+      "domain": "security",
+      "definition": "Determining whether a subject may perform an operation on a resource.",
+      "example": "allow read but deny write",
+      "aliases": []
+    },
+    {
+      "id": "credential",
+      "domain": "security",
+      "definition": "Evidence used to support identity or access.",
+      "example": "password or key",
+      "aliases": []
+    },
+    {
+      "id": "secret",
+      "domain": "security",
+      "definition": "Sensitive value whose disclosure could compromise security.",
+      "example": "API key",
+      "aliases": []
+    },
+    {
+      "id": "token",
+      "domain": "security",
+      "definition": "Data representing a security assertion, session or access grant in context.",
+      "example": "access token",
+      "aliases": []
+    },
+    {
+      "id": "session",
+      "domain": "security",
+      "definition": "State associated with a continuing interaction.",
+      "example": "login session",
+      "aliases": []
+    },
+    {
+      "id": "role_based_access_control",
+      "domain": "security",
+      "definition": "Access decisions based on assigned permission-bearing roles.",
+      "example": "admin role",
+      "aliases": [
+        "RBAC"
+      ]
+    },
+    {
+      "id": "least_privilege",
+      "domain": "security",
+      "definition": "Limit authority to what is needed for the task.",
+      "example": "read-only token",
+      "aliases": []
+    },
+    {
+      "id": "encryption",
+      "domain": "security",
+      "definition": "Transforming data using cryptography to protect confidentiality.",
+      "example": "encrypted storage",
+      "aliases": []
+    },
+    {
+      "id": "cryptographic_hash",
+      "domain": "security",
+      "definition": "One-way digest function designed for cryptographic security properties.",
+      "example": "SHA-256",
+      "aliases": []
+    },
+    {
+      "id": "digital_signature",
+      "domain": "security",
+      "definition": "Cryptographic value used to verify origin and integrity with a public key.",
+      "example": "signed release",
+      "aliases": []
+    },
+    {
+      "id": "certificate",
+      "domain": "security",
+      "definition": "Signed structure binding a public key to identity or other attributes.",
+      "example": "TLS certificate",
+      "aliases": []
+    },
+    {
+      "id": "audit_log",
+      "domain": "security",
+      "definition": "Record of security-relevant or accountable actions.",
+      "example": "access change log",
+      "aliases": []
+    },
+    {
+      "id": "vulnerability",
+      "domain": "security",
+      "definition": "Weakness that can be exploited or triggered to cause harm.",
+      "example": "unpatched flaw",
+      "aliases": []
+    },
+    {
+      "id": "access_control",
+      "domain": "security",
+      "definition": "Mechanisms implementing restrictions on resource use.",
+      "example": "file permissions",
+      "aliases": []
+    },
+    {
+      "id": "log",
+      "domain": "observability",
+      "definition": "Recorded occurrence with contextual data.",
+      "example": "application log",
+      "aliases": []
+    },
+    {
+      "id": "metric",
+      "domain": "observability",
+      "definition": "Numerical measurement collected over time or at a point in time.",
+      "example": "request count",
+      "aliases": []
+    },
+    {
+      "id": "trace",
+      "domain": "observability",
+      "definition": "Record connecting operations along an execution path.",
+      "example": "distributed request trace",
+      "aliases": []
+    },
+    {
+      "id": "span",
+      "domain": "observability",
+      "definition": "Timed operation within a trace.",
+      "example": "database call span",
+      "aliases": []
+    },
+    {
+      "id": "event",
+      "domain": "observability",
+      "definition": "Occurrence represented at a particular time.",
+      "example": "deployment completed",
+      "aliases": []
+    },
+    {
+      "id": "alert",
+      "domain": "observability",
+      "definition": "Notification that a condition requires attention.",
+      "example": "disk full alert",
+      "aliases": []
+    },
+    {
+      "id": "error",
+      "domain": "observability",
+      "definition": "Observed failure or invalid condition.",
+      "example": "permission denied",
+      "aliases": []
+    },
+    {
+      "id": "warning",
+      "domain": "observability",
+      "definition": "Notice of a condition that may need attention without necessarily stopping work.",
+      "example": "deprecated API",
+      "aliases": []
+    },
+    {
+      "id": "success",
+      "domain": "observability",
+      "definition": "Operation met its stated success condition.",
+      "example": "exit 0",
+      "aliases": []
+    },
+    {
+      "id": "failure",
+      "domain": "observability",
+      "definition": "Operation did not meet its stated success condition.",
+      "example": "assertion failed",
+      "aliases": []
+    },
+    {
+      "id": "pending",
+      "domain": "observability",
+      "definition": "Work or decision has not yet reached a terminal outcome.",
+      "example": "queued CI",
+      "aliases": []
+    },
+    {
+      "id": "running",
+      "domain": "observability",
+      "definition": "Execution is actively underway.",
+      "example": "running process",
+      "aliases": []
+    },
+    {
+      "id": "blocked",
+      "domain": "observability",
+      "definition": "Work cannot progress until a dependency or constraint is resolved.",
+      "example": "missing access",
+      "aliases": []
+    },
+    {
+      "id": "unknown",
+      "domain": "observability",
+      "definition": "Evidence is insufficient to determine the state.",
+      "example": "unverified runtime",
+      "aliases": []
+    },
+    {
+      "id": "skipped",
+      "domain": "observability",
+      "definition": "Check or action deliberately not executed.",
+      "example": "optional linter absent",
+      "aliases": []
+    },
+    {
+      "id": "cancelled",
+      "domain": "observability",
+      "definition": "Execution or planned action was intentionally stopped before normal completion.",
+      "example": "cancelled workflow",
+      "aliases": []
+    },
+    {
+      "id": "stopped",
+      "domain": "observability",
+      "definition": "Process or service is not currently executing.",
+      "example": "stopped container",
+      "aliases": []
+    },
+    {
+      "id": "health_check",
+      "domain": "observability",
+      "definition": "Probe of a component's availability or specified readiness.",
+      "example": "GET /health",
+      "aliases": []
+    },
+    {
+      "id": "readiness",
+      "domain": "observability",
+      "definition": "Whether a component is currently prepared to serve intended work.",
+      "example": "ready probe",
+      "aliases": []
+    },
+    {
+      "id": "liveness",
+      "domain": "observability",
+      "definition": "Whether a component remains active according to a defined probe.",
+      "example": "live probe",
+      "aliases": []
+    },
+    {
+      "id": "severity",
+      "domain": "observability",
+      "definition": "Classification of impact or urgency according to a defined scale.",
+      "example": "critical",
+      "aliases": []
+    },
+    {
+      "id": "status",
+      "domain": "observability",
+      "definition": "Reported condition or outcome at a given time.",
+      "example": "job status",
+      "aliases": []
+    }
+  ],
+  "relations": [
+    {
+      "from": "directory",
+      "type": "contains",
+      "to": "file"
+    },
+    {
+      "from": "symbolic_link",
+      "type": "references",
+      "to": "path"
+    },
+    {
+      "from": "hard_link",
+      "type": "references",
+      "to": "inode"
+    },
+    {
+      "from": "typescript",
+      "type": "is_a",
+      "to": "programming_language"
+    },
+    {
+      "from": "javascript",
+      "type": "is_a",
+      "to": "programming_language"
+    },
+    {
+      "from": "nodejs",
+      "type": "is_a",
+      "to": "runtime"
+    },
+    {
+      "from": "script",
+      "type": "is_a",
+      "to": "file"
+    },
+    {
+      "from": "function",
+      "type": "accepts",
+      "to": "parameter"
+    },
+    {
+      "from": "module",
+      "type": "exposes",
+      "to": "export"
+    },
+    {
+      "from": "commit",
+      "type": "references",
+      "to": "commit"
+    },
+    {
+      "from": "branch",
+      "type": "references",
+      "to": "commit"
+    },
+    {
+      "from": "tag",
+      "type": "references",
+      "to": "commit"
+    },
+    {
+      "from": "container",
+      "type": "created_from",
+      "to": "image"
+    },
+    {
+      "from": "workflow",
+      "type": "contains",
+      "to": "workflow_job"
+    },
+    {
+      "from": "workflow_job",
+      "type": "contains",
+      "to": "step"
+    },
+    {
+      "from": "trace",
+      "type": "contains",
+      "to": "span"
+    },
+    {
+      "from": "table",
+      "type": "contains",
+      "to": "row"
+    },
+    {
+      "from": "table",
+      "type": "contains",
+      "to": "column"
+    },
+    {
+      "from": "primary_key",
+      "type": "is_a",
+      "to": "constraint"
+    },
+    {
+      "from": "foreign_key",
+      "type": "is_a",
+      "to": "constraint"
+    },
+    {
+      "from": "unit_test",
+      "type": "is_a",
+      "to": "test"
+    },
+    {
+      "from": "integration_test",
+      "type": "is_a",
+      "to": "test"
+    },
+    {
+      "from": "end_to_end_test",
+      "type": "is_a",
+      "to": "test"
+    },
+    {
+      "from": "regression_test",
+      "type": "is_a",
+      "to": "test"
+    },
+    {
+      "from": "smoke_test",
+      "type": "is_a",
+      "to": "test"
+    }
+  ]
+}
