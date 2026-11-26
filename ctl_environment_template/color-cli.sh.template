@@ -5,6 +5,7 @@ color() {
   if [ "$#" -gt 0 ]; then shift; fi
   case "$sub" in
     man|search) __color_vocabulary "$sub" "$@"; return ;;
+    show|add|edit|preview) __color_manage_role "$sub" "$@"; return ;;
     doctor)
       if [ "$#" -eq 0 ]; then
         __color_diagnose || return
@@ -28,7 +29,7 @@ color() {
     return 2
   fi
   case "$sub" in
-    help|-h|--help) printf '%s\n' 'Usage: color {update|backup|restore <backup-runtime-path>|help|version|list|validate}' '       color man [term]' '       color search <keyword>' '       color doctor [--fix]' '       color reload' ;;
+    help|-h|--help) printf '%s\n' 'Usage: color {update|backup|restore <backup-runtime-path>|help|version|list|validate}' '       color man [term]' '       color search <keyword>' '       color doctor [--fix]' '       color reload' '       color show <role>' '       color add <role> <category> <hierarchy> [--hex "#RRGGBB"]' '       color edit <role> <hex> | <role> <category> <hierarchy> --hex <hex>' '       color preview <role> <hex>' ;;
     version) cat "$COLOR_RUNTIME_HOME/.version" ;;
     list) color_roles ;;
     validate) color_validate ;;
@@ -43,6 +44,64 @@ color() {
       ;;
     *) printf 'color: unknown command %s; see color help\n' "$sub" >&2; return 2 ;;
   esac
+}
+
+# Role writes use the existing hook, which owns the runtime lock. Reload
+# only after it exits, so neither path attempts to acquire a nested lock.
+__color_manage_role() {
+  local mode="$1" role hook hex hierarchy
+  shift
+  role="${1:-}"
+  if ! [[ "$role" =~ ^[A-Za-z_][A-Za-z0-9_.-]*$ ]]; then
+    echo 'color: expected a valid role name; see color help' >&2; return 2
+  fi
+  if [ "$COLOR_ROLE_SCHEMA_PATH" != "$COLOR_RUNTIME_HOME/color_roles.json" ] ||
+     [ "$COLOR_LAWS_PATH" != "$COLOR_RUNTIME_HOME/laws/color/color-laws.json" ] ||
+     [ "$(readlink -f "$COLOR_RUNTIME_HOME")" != "$COLOR_RUNTIME_HOME" ] ||
+     [ "$(readlink -f "$COLOR_ROLE_SCHEMA_PATH")" != "$COLOR_ROLE_SCHEMA_PATH" ] ||
+     [ "$(readlink -f "$COLOR_LAWS_PATH")" != "$COLOR_LAWS_PATH" ]; then
+    echo 'color: role management requires canonical runtime paths' >&2; return 1
+  fi
+  hook="$COLOR_RUNTIME_HOME/install_hook.sh"
+  case "$mode" in
+    show)
+      [ "$#" -eq 1 ] || { echo 'Usage: color show <role>' >&2; return 2; }
+      jq -e --arg role "$role" '[.[] | select(.role == $role)] | if length == 1 then .[0] else error("unknown or ambiguous role") end' "$COLOR_ROLE_SCHEMA_PATH"
+      return ;;
+    add)
+      if [ "$#" -ne 3 ] && { [ "$#" -ne 5 ] || [ "$4" != --hex ]; }; then
+        echo 'Usage: color add <role> <category> <hierarchy> [--hex <hex>]' >&2; return 2
+      fi
+      # CLI positionals must not be interpreted as hook options.
+      if [[ "$2" == -* || "$3" == -* ]]; then return 2; fi
+      "$hook" "$@" || return ;;
+    edit)
+      if [ "$#" -eq 2 ]; then
+        "$hook" --edit "$role" --hex "$2" || return
+      elif [ "$#" -eq 5 ] && [ "$4" = --hex ] && [[ "$2" != -* && "$3" != -* ]]; then
+        "$hook" --edit "$@" || return
+      else
+        echo 'Usage: color edit <role> <hex> | <role> <category> <hierarchy> --hex <hex>' >&2; return 2
+      fi ;;
+    preview)
+      [ "$#" -eq 2 ] || { echo 'Usage: color preview <role> <hex>' >&2; return 2; }
+      hex="$2"
+      hierarchy=$("$hook" --preview "$role" --hex "$hex") || return
+      # Override the palette only in a subshell; keep the normal renderer
+      # (including its TTY check and hierarchy emphasis) as the single path.
+      (
+        COLOR_ROLE_HEX["$role"]="$hex"
+        COLOR_ROLE_ANSI["$role"]="$(hex_to_ansi "$hex")" || exit 1
+        COLOR_ROLE_HIERARCHY["$role"]="$hierarchy"
+        COLOR_SYSTEM_READY=1
+        color_apply "$role" "$role $hex"
+      )
+      return ;;
+  esac
+  if ! __color_repair_reload quiet; then
+    echo 'color: role change committed; caller reload failed, retry color reload' >&2
+    return 1
+  fi
 }
 
 # Read the shipped reference, not the checkout or the mutable role schema.
