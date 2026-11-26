@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scope": "Core technical vocabulary for Color: Linux/Bash, source code, data, Git, runtime, network, delivery, security and observability. Not an exhaustive dictionary of computing; no colors or new runtime roles are assigned.",
   "classification": {
     "fields": {
@@ -50,7 +50,8 @@
       "references": "Points to or identifies another concept.",
       "accepts": "May take this kind of input.",
       "exposes": "Can make this concept accessible.",
-      "created_from": "Constructed from another concept."
+      "created_from": "Constructed from another concept.",
+      "declares": "Defines a named constituent in its own specification."
     }
   },
   "sources": {
@@ -75,7 +76,14 @@
     "security-2": "https://csrc.nist.gov/glossary/term/authorization",
     "security-3": "https://csrc.nist.gov/glossary/term/least_privilege",
     "security-4": "https://csrc.nist.gov/glossary/term/digital_signature",
-    "observability-1": "https://opentelemetry.io/docs/concepts/signals/"
+    "observability-1": "https://opentelemetry.io/docs/concepts/signals/",
+    "filesystem-inode": "https://man7.org/linux/man-pages/man7/inode.7.html",
+    "data-pg-schema": "https://www.postgresql.org/docs/current/ddl-schemas.html",
+    "programming-const": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const",
+    "programming-parameter": "https://developer.mozilla.org/en-US/docs/Glossary/Parameter",
+    "runtime-bind": "https://docs.docker.com/engine/storage/bind-mounts/",
+    "network-ipv6": "https://www.rfc-editor.org/rfc/rfc8200.html",
+    "network-addressing": "https://www.rfc-editor.org/info/rfc4291/"
   },
   "domains": [
     {
@@ -85,7 +93,8 @@
       "reference_ids": [
         "filesystem-1",
         "filesystem-2",
-        "filesystem-3"
+        "filesystem-3",
+        "filesystem-inode"
       ]
     },
     {
@@ -102,7 +111,9 @@
       "definition": "Elements within source code, distinct from the identity of the source file.",
       "reference_ids": [
         "programming-1",
-        "programming-2"
+        "programming-2",
+        "programming-const",
+        "programming-parameter"
       ]
     },
     {
@@ -111,7 +122,8 @@
       "definition": "Data structure, storage, integrity and change.",
       "reference_ids": [
         "data-1",
-        "data-2"
+        "data-2",
+        "data-pg-schema"
       ]
     },
     {
@@ -129,7 +141,8 @@
       "reference_ids": [
         "runtime-1",
         "runtime-2",
-        "runtime-3"
+        "runtime-3",
+        "runtime-bind"
       ]
     },
     {
@@ -139,7 +152,9 @@
       "reference_ids": [
         "network-1",
         "network-2",
-        "network-3"
+        "network-3",
+        "network-ipv6",
+        "network-addressing"
       ]
     },
     {
@@ -189,9 +204,11 @@
     {
       "id": "file",
       "domain": "filesystem",
-      "definition": "Regular filesystem object holding a sequence of bytes.",
+      "definition": "In this Color vocabulary, a regular filesystem object storing bytes. Linux also uses file in a broader sense covering directories and special objects.",
       "example": "README.md",
-      "aliases": []
+      "aliases": [
+        "regular file"
+      ]
     },
     {
       "id": "symbolic_link",
@@ -381,8 +398,8 @@
     {
       "id": "argument",
       "domain": "shell",
-      "definition": "Value supplied to a command or function invocation.",
-      "example": "README.md in cat README.md",
+      "definition": "Value or expression supplied at a command or function invocation.",
+      "example": "5 in add(5, 3)",
       "aliases": []
     },
     {
@@ -402,7 +419,7 @@
     {
       "id": "environment_variable",
       "domain": "shell",
-      "definition": "Named value exported into a process environment.",
+      "definition": "Named value in a process environment; in Bash, exported shell variables are passed to child processes.",
       "example": "PATH",
       "aliases": [
         "env var"
@@ -581,7 +598,7 @@
     {
       "id": "constant",
       "domain": "programming",
-      "definition": "Binding or value intended not to be reassigned; object contents may still change.",
+      "definition": "In JavaScript and TypeScript, a binding declared with const cannot be reassigned; referenced object contents may still change.",
       "example": "const settings = {}",
       "aliases": []
     },
@@ -714,7 +731,7 @@
     {
       "id": "parameter",
       "domain": "programming",
-      "definition": "Named input in a function definition.",
+      "definition": "Named input declared by a function; it receives a supplied argument or a default where applicable.",
       "example": "a in add(a,b)",
       "aliases": []
     },
@@ -791,9 +808,11 @@
     {
       "id": "interface",
       "domain": "programming",
-      "definition": "TypeScript declaration describing an object shape or callable structure.",
+      "definition": "In TypeScript, a declaration naming an object or callable type's shape.",
       "example": "interface User {}",
-      "aliases": []
+      "aliases": [
+        "TypeScript interface"
+      ]
     },
     {
       "id": "type_alias",
@@ -912,9 +931,11 @@
     {
       "id": "schema",
       "domain": "data",
-      "definition": "Description of the structure and constraints of data; in SQL also a namespace.",
+      "definition": "Description of the expected structure and constraints of data, such as a JSON document.",
       "example": "color role schema",
-      "aliases": []
+      "aliases": [
+        "data schema"
+      ]
     },
     {
       "id": "validation",
@@ -1077,6 +1098,15 @@
       "aliases": []
     },
     {
+      "id": "database_schema",
+      "domain": "data",
+      "definition": "Named namespace within a PostgreSQL database that organizes tables and other database objects.",
+      "example": "public.users",
+      "aliases": [
+        "SQL schema"
+      ]
+    },
+    {
       "id": "repository",
       "domain": "version_control",
       "definition": "Git object database and references, with optional working tree.",
@@ -1095,7 +1125,7 @@
     {
       "id": "git_index",
       "domain": "version_control",
-      "definition": "Git staging structure describing the next proposed snapshot.",
+      "definition": "Git data structure holding staged content and related metadata for the next commit; also holds conflict stages during a merge.",
       "example": "git add",
       "aliases": [
         "staging area"
@@ -1118,23 +1148,23 @@
     {
       "id": "ref",
       "domain": "version_control",
-      "definition": "Named pointer to a Git object.",
+      "definition": "In Git, a name that identifies an object directly or through another reference.",
       "example": "refs/heads/main",
       "aliases": [
-        "reference"
+        "Git reference"
       ]
     },
     {
       "id": "head",
       "domain": "version_control",
-      "definition": "Git reference naming the current checkout or directly its commit.",
+      "definition": "Git HEAD identifies the current branch or a directly checked-out commit in detached HEAD state.",
       "example": "HEAD",
       "aliases": []
     },
     {
       "id": "tag",
       "domain": "version_control",
-      "definition": "Named reference conventionally used to mark a particular revision.",
+      "definition": "Git reference under refs/tags that can identify any Git object, often marking a release commit.",
       "example": "v3.1.2",
       "aliases": []
     },
@@ -1253,6 +1283,13 @@
       "aliases": []
     },
     {
+      "id": "git_object",
+      "domain": "version_control",
+      "definition": "Stored Git entity of type blob, tree, commit or annotated tag.",
+      "example": "git cat-file -t HEAD",
+      "aliases": []
+    },
+    {
       "id": "runtime",
       "domain": "runtime",
       "definition": "Execution environment providing facilities needed by a program.",
@@ -1303,14 +1340,14 @@
     {
       "id": "image",
       "domain": "runtime",
-      "definition": "Packaged Docker filesystem and configuration used to create containers.",
+      "definition": "Read-only template containing filesystem layers and configuration for creating Docker containers.",
       "example": "node:22",
       "aliases": []
     },
     {
       "id": "container",
       "domain": "runtime",
-      "definition": "Isolated runnable instance created from a container image.",
+      "definition": "Runnable instance created from a container image; when running, its processes execute with isolation.",
       "example": "docker run",
       "aliases": []
     },
@@ -1331,14 +1368,14 @@
     {
       "id": "volume",
       "domain": "runtime",
-      "definition": "Storage managed separately from a container lifecycle.",
+      "definition": "Docker-managed storage that can persist beyond a container lifecycle.",
       "example": "docker volume",
       "aliases": []
     },
     {
       "id": "bind_mount",
       "domain": "runtime",
-      "definition": "Mapping a host filesystem path into a container.",
+      "definition": "Mount exposing a file or directory from the Docker daemon host at a path in a container.",
       "example": "-v /host:/app",
       "aliases": []
     },
@@ -1471,11 +1508,9 @@
     {
       "id": "ip_address",
       "domain": "network",
-      "definition": "Network-layer identifier used for routing to an interface or endpoint.",
+      "definition": "Network-layer address identifying a destination or source interface or group, depending on address type.",
       "example": "192.0.2.1",
-      "aliases": [
-        "IP"
-      ]
+      "aliases": []
     },
     {
       "id": "port",
@@ -1592,7 +1627,7 @@
     {
       "id": "http_method",
       "domain": "network",
-      "definition": "Request token expressing the intended HTTP operation.",
+      "definition": "Request token specifying the intended operation on the target resource.",
       "example": "GET",
       "aliases": []
     },
@@ -1653,6 +1688,15 @@
       "aliases": []
     },
     {
+      "id": "internet_protocol",
+      "domain": "network",
+      "definition": "Network-layer protocol family defining packet addressing and delivery across interconnected networks.",
+      "example": "IPv4 or IPv6",
+      "aliases": [
+        "IP"
+      ]
+    },
+    {
       "id": "workflow",
       "domain": "delivery",
       "definition": "Defined sequence or graph of coordinated work.",
@@ -1669,14 +1713,14 @@
     {
       "id": "action",
       "domain": "delivery",
-      "definition": "Reusable GitHub Actions execution component, or a general operation in context.",
+      "definition": "In GitHub Actions, a reusable execution component invoked by a workflow step.",
       "example": "actions/checkout",
       "aliases": []
     },
     {
       "id": "job_runner",
       "domain": "delivery",
-      "definition": "Machine or execution environment running workflow jobs.",
+      "definition": "Machine that runs jobs for GitHub Actions; a job can execute in a configured container on that runner.",
       "example": "ubuntu runner",
       "aliases": [
         "runner"
@@ -1685,7 +1729,7 @@
     {
       "id": "workflow_job",
       "domain": "delivery",
-      "definition": "Group of workflow steps executed on a runner.",
+      "definition": "Group of workflow steps scheduled on a runner; jobs can be ordered by dependencies or run independently.",
       "example": "check job",
       "aliases": []
     },
@@ -2171,11 +2215,6 @@
       "to": "file"
     },
     {
-      "from": "function",
-      "type": "accepts",
-      "to": "parameter"
-    },
-    {
       "from": "module",
       "type": "exposes",
       "to": "export"
@@ -2187,11 +2226,6 @@
     },
     {
       "from": "branch",
-      "type": "references",
-      "to": "commit"
-    },
-    {
-      "from": "tag",
       "type": "references",
       "to": "commit"
     },
@@ -2259,6 +2293,46 @@
       "from": "smoke_test",
       "type": "is_a",
       "to": "test"
+    },
+    {
+      "from": "function",
+      "type": "declares",
+      "to": "parameter"
+    },
+    {
+      "from": "function",
+      "type": "accepts",
+      "to": "argument"
+    },
+    {
+      "from": "tag",
+      "type": "references",
+      "to": "git_object"
+    },
+    {
+      "from": "commit",
+      "type": "is_a",
+      "to": "git_object"
+    },
+    {
+      "from": "database_schema",
+      "type": "contains",
+      "to": "table"
+    },
+    {
+      "from": "database",
+      "type": "contains",
+      "to": "database_schema"
+    },
+    {
+      "from": "absolute_path",
+      "type": "is_a",
+      "to": "path"
+    },
+    {
+      "from": "relative_path",
+      "type": "is_a",
+      "to": "path"
     }
   ]
 }

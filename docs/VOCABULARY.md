@@ -15,10 +15,10 @@ Before adding a term, search the canonical IDs and aliases, distinguish it from 
 - **Filesystem and storage:** 21 terms. Objects and paths you encounter in Linux listings.
 - **Shell and command line:** 28 terms. How commands are expressed, connected and evaluated.
 - **Programming and types:** 50 terms. Elements within source code, distinct from the identity of the source file.
-- **Data representation and databases:** 25 terms. Data structure, storage, integrity and change.
-- **Version control and collaboration:** 24 terms. Git objects, references and operations.
+- **Data representation and databases:** 26 terms. Data structure, storage, integrity and change.
+- **Version control and collaboration:** 25 terms. Git objects, references and operations.
 - **Execution and infrastructure:** 29 terms. Components that make software run.
-- **Networking and web interfaces:** 27 terms. How independent systems communicate.
+- **Networking and web interfaces:** 28 terms. How independent systems communicate.
 - **Automation, testing and evidence:** 30 terms. Execution and verification vocabulary.
 - **Security and access:** 15 terms. Identity, trust and permitted operations.
 - **Observability, outcomes and state:** 22 terms. Signals and outcome terms, distinct from object identities.
@@ -117,3 +117,22 @@ Baseline: Color 3.1.2 at commit `2336cc8`. Vocabulary introduced in PR #13 at `9
 - Known gaps, decisions and the next extension rule are recorded.
 
 A library is ready for a stated purpose when these gates are satisfied for that purpose, not merely when it contains a large number of entries.
+
+
+## Semantic review checkpoint — v1.0.1
+
+The structural CI pass at `3f878a1` did not establish semantic correctness. A targeted source review of ambiguous or overlapping entries identified the following corrections. All existing IDs and role assignments remain intact; three distinctions were added rather than merging unlike meanings.
+
+| Review area | Correction | Source |
+|---|---|---|
+| Filesystem | Explicitly scope Color's file concept to regular files; recognize the broader Linux sense. | [Linux inode(7)](https://man7.org/linux/man-pages/man7/inode.7.html) |
+| Programming | Clarify const binding versus object mutability, TypeScript interface scope, and declared parameters versus supplied arguments; correct relation direction and type. | [MDN const](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const), [MDN parameter](https://developer.mozilla.org/en-US/docs/Glossary/Parameter), [TypeScript interfaces](https://www.typescriptlang.org/docs/handbook/interfaces) |
+| Data | Separate a data schema from a PostgreSQL database namespace. | [PostgreSQL schemas](https://www.postgresql.org/docs/current/ddl-schemas.html) |
+| Git | Distinguish Git references, tags, objects, HEAD and staging index; tag targets are not restricted to commits. | [Git glossary](https://git-scm.com/docs/gitglossary) |
+| Networking | Separate Internet Protocol (IP) from an IP address; clarify HTTP method. | [RFC 8200](https://www.rfc-editor.org/rfc/rfc8200.html), [RFC 4291](https://www.rfc-editor.org/info/rfc4291/), [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html) |
+| Execution | Distinguish images, containers, bind mounts and volumes; clarify exported environment variables. | [Docker overview](https://docs.docker.com/get-started/docker-overview), [Docker bind mounts](https://docs.docker.com/engine/storage/bind-mounts/), [GNU Bash manual](https://www.gnu.org/software/bash/manual/bash.html) |
+| Delivery | Scope action, job and runner to GitHub Actions in these entries. | [GitHub Actions](https://docs.github.com/en/actions/get-started/understand-github-actions) |
+
+Coverage after this batch: 274 concepts, 10 domains, 31 relationships. This is a targeted semantic correction, not a term-by-term certification of the whole vocabulary. Further review must assess remaining meanings, homonyms and examples against primary sources; learner recognition is still untested. Do not promote the vocabulary to color-assignment authority until those gates are met.
+
+For reading the canonical library without editing it, use `jq -r '.terms[] | [.id, .definition, .example] | @tsv' docs/vocabulary.json` from the repository root. For a single entry, use `jq '.terms[] | select(.id == "parameter")' docs/vocabulary.json`.
