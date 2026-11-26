@@ -59,6 +59,10 @@ Registering a role, with an explicit colour or an auto-generated one:
 Either way the candidate schema is validated against `color-laws.json` **before**
 the write is committed. A rejected colour leaves your schema byte-identical.
 
+## Technical vocabulary
+
+See [Vocabulary library](docs/VOCABULARY.md) and its [canonical JSON](docs/vocabulary.json) for definitions, examples, existing hierarchy meanings and concept relationships. Vocabulary is independent of color registration.
+
 ## Policy
 
 `laws/color/color-laws.json` holds policy only — no colour data, so it cannot

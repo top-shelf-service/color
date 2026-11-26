@@ -38,6 +38,9 @@ jobs:
                      ctl_environment_template/install_hook.sh.template \
                      ctl_environment_template/colors.source.sh.template
 
+      - name: "Vocabulary: structural and compatibility checks"
+        run: python3 scripts/check-vocabulary.py
+
       - name: "Lint: JSON templates"
         run: |
           for f in $(git ls-files '*.json.template'); do
