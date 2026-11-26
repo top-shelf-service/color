@@ -19,7 +19,8 @@ rt="$XDG_DATA_HOME/tss/color"
 source "$rt/colors.source.sh"
 color help | grep -q update
 [ "$(color version)" = 3.3.0 ]
-color list | grep -q directory
+color list > "$work/list"
+grep -q directory "$work/list"
 color validate >/dev/null
 if color nonexistent || color update extra; then exit 1; fi
 "$rt/install_hook.sh" test_custom test child --hex '#FFAA55' >/dev/null
@@ -34,7 +35,8 @@ color update
 cmp "$work/roles" "$rt/color_roles.json"
 cmp "$work/bashrc" "$HOME/.bashrc"
 cmp "$work/aliases" "$HOME/.bash_aliases"
-color update | grep -q 'already current'
+color update > "$work/repeat"
+grep -q 'already current' "$work/repeat"
 # A candidate with a stricter policy rejects the current roles.
 laws="$work/upstream/ctl_environment_template/laws/color/color-laws.json.template"
 jq '.rules.require_contrast_ratio.min_ratio = 21' "$laws" > "$work/laws"
