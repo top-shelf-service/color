@@ -129,9 +129,9 @@ __color_ls_sgr() {
 
 __color_ls_render() (
   set -o pipefail
-  local di fi ln sh ts js err
+  local di file_sgr ln sh ts js err
   if ! di="$(__color_ls_sgr directory)" ||
-     ! fi="$(__color_ls_sgr files)" ||
+     ! file_sgr="$(__color_ls_sgr files)" ||
      ! ln="$(__color_ls_sgr links)" ||
      ! sh="$(__color_ls_sgr scripts)" ||
      ! ts="$(__color_ls_sgr typescript)" ||
@@ -142,7 +142,7 @@ __color_ls_render() (
   fi
   # Disable attribute color overrides; permissions and -F still show them.
   # An isolated palette fixes the reset encoding and avoids ambient overrides.
-  LS_COLORS="di=$di:fi=$fi:ln=$ln:ex=00:su=00:sg=00:ca=00:mh=00:tw=$di:ow=$di:st=$di:pi=$fi:so=$fi:bd=$fi:cd=$fi:do=$fi:or=$err:mi=$err:*.sh=$sh:*.ts=$ts:*.tsx=$ts:*.mts=$ts:*.cts=$ts:*.js=$js:*.mjs=$js:*.cjs=$js" \
+  LS_COLORS="di=$di:fi=$file_sgr:ln=$ln:ex=00:su=00:sg=00:ca=00:mh=00:tw=$di:ow=$di:st=$di:pi=$file_sgr:so=$file_sgr:bd=$file_sgr:cd=$file_sgr:do=$file_sgr:or=$err:mi=$err:*.sh=$sh:*.ts=$ts:*.tsx=$ts:*.mts=$ts:*.cts=$ts:*.js=$js:*.mjs=$js:*.cjs=$js" \
     command ls --color=always -alF --quoting-style=shell-escape -- "$@" |
     sed -E 's/\x1b\[0m([*/@|=>])/\1\x1b[0m/g'
 )
