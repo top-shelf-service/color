@@ -21,7 +21,7 @@
 
 set -euo pipefail
 
-VERSION="3.3.0"
+VERSION="3.4.0"
 
 GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'; NC='\033[0m'
 info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
@@ -155,6 +155,16 @@ if $RUNTIME_ONLY; then
   fi
 fi
 
+# The vocabulary is shipped reference data, not user-editable role data.
+# Reject unreadable or incomplete packages before changing installed files.
+if ! jq -e 'type == "object" and (.terms | type == "array" and length > 0)
+    and (.domains | type == "array" and length > 0)
+    and (.classification.role_to_term | type == "object")' \
+    "$REPO_ROOT/docs/vocabulary.json" >/dev/null; then
+  error "Invalid shipped vocabulary: $REPO_ROOT/docs/vocabulary.json"
+  exit 1
+fi
+
 # ------------------------------------------------- migrate legacy layout ----
 # A real directory at ~/ctl_environment from a pre-3.0 install is moved into
 # the runtime once, preserving any roles the user registered.
@@ -183,6 +193,7 @@ install_code "$TEMPLATE_DIR/colors.source.sh.template"            "$RUNTIME_DIR/
 install_code "$TEMPLATE_DIR/install_hook.sh.template"             "$RUNTIME_DIR/install_hook.sh" 755
 install_code "$REPO_ROOT/validate_color_roles.sh"                 "$RUNTIME_DIR/validate_color_roles.sh" 755
 install_code "$TEMPLATE_DIR/color-cli.sh.template"                "$RUNTIME_DIR/color-cli.sh"
+install_code "$REPO_ROOT/docs/vocabulary.json"                     "$RUNTIME_DIR/vocabulary.json"
 
 # Invalidate the compiled cache so the next shell recompiles from the schema.
 rm -f "$RUNTIME_DIR/cache/roles.sh"
@@ -277,7 +288,7 @@ fi
 # ---------------------------------------------------------------- verify ----
 fail=0
 for f in color_roles.json laws/color/color-laws.json colors.source.sh \
-         install_hook.sh validate_color_roles.sh color-cli.sh .version; do
+         install_hook.sh validate_color_roles.sh color-cli.sh vocabulary.json .version; do
   [ -e "$RUNTIME_DIR/$f" ] || { error "Missing after install: $RUNTIME_DIR/$f"; fail=1; }
 done
 for f in install_hook.sh validate_color_roles.sh; do
