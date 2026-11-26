@@ -31,7 +31,7 @@ else
   G='\033[0;32m'; R='\033[0;31m'; Y='\033[1;33m'; B='\033[0;34m'; DIM='\033[2m'; NC='\033[0m'
 fi
 
-TOTAL=37
+TOTAL=38
 n=0; pass=0; fail=0; skip=0
 declare -a FAILED=()
 START=$(date +%s)
@@ -111,7 +111,7 @@ corrupt() { jq "$1" "$RT/color_roles.json" > "$H/x" && mv "$H/x" "$RT/color_role
 make_jqless_path() {
   local d; d=$(mktemp -d)
   local tool src
-  for tool in bash readlink dirname mkdir mktemp mv cat sort rm cp basename; do
+  for tool in bash readlink dirname mkdir mktemp mv cat sort rm cp basename grep; do
     src=$(command -v "$tool" 2>/dev/null) && ln -sf "$src" "$d/$tool"
   done
   printf '%s' "$d"
@@ -343,6 +343,14 @@ t "hook registers a dark role against a light background" c28
 section "FILESYSTEM RENDERING"
 c29() { newhome; inst && "${CLEAN[@]}" HOME="$H" bash scripts/test-filesystem-rendering.sh "$RT/colors.source.sh"; }
 t "semantic filenames and classification symbols" c29
+
+section "HIERARCHY EMPHASIS"
+c30() { newhome; inst && "${CLEAN[@]}" HOME="$H" python3 scripts/test-hierarchy-emphasis.py "$RT/colors.source.sh"; }
+if command -v python3 >/dev/null 2>&1; then
+  t "hierarchy emphasis and plain fallback" c30
+else
+  t_skip "hierarchy emphasis and plain fallback" "no python3 — test only"
+fi
 
 # ----------------------------------------------------------------- summary --
 ELAPSED=$(( $(date +%s) - START ))

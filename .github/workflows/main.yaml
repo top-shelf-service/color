@@ -149,6 +149,14 @@ jobs:
             bash scripts/test-filesystem-rendering.sh "$HOME/.local/share/tss/color/colors.source.sh"
           )
 
+      - name: "Rendering: hierarchy emphasis"
+        run: |
+          (
+            export HOME=$(mktemp -d)
+            ./install.sh >/dev/null
+            python3 scripts/test-hierarchy-emphasis.py "$HOME/.local/share/tss/color/colors.source.sh"
+          )
+
       - name: "Uninstall: leaves nothing behind, install works after"
         run: |
           (
