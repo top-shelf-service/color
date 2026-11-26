@@ -194,6 +194,7 @@ install_code "$TEMPLATE_DIR/install_hook.sh.template"             "$RUNTIME_DIR/
 install_code "$REPO_ROOT/validate_color_roles.sh"                 "$RUNTIME_DIR/validate_color_roles.sh" 755
 install_code "$TEMPLATE_DIR/color-cli.sh.template"                "$RUNTIME_DIR/color-cli.sh"
 install_code "$REPO_ROOT/docs/vocabulary.json"                     "$RUNTIME_DIR/vocabulary.json"
+install_code "$REPO_ROOT/bash_aliases_template.sh"                  "$RUNTIME_DIR/alias-reference.txt"
 
 # Invalidate the compiled cache so the next shell recompiles from the schema.
 rm -f "$RUNTIME_DIR/cache/roles.sh"
@@ -265,6 +266,7 @@ fi
   echo "[ -r \"\$COLOR_RUNTIME_HOME/colors.source.sh\" ] && . \"\$COLOR_RUNTIME_HOME/colors.source.sh\""
   if ! $SKIP_ALIASES; then
     echo "[ -r \"\$HOME/.bash_aliases\" ] && . \"\$HOME/.bash_aliases\""
+    echo 'if declare -F __color_aliases_startup >/dev/null; then __color_aliases_startup || :; fi'
   fi
   echo "$END_MARK"
 } >> "$BASHRC"
@@ -288,7 +290,7 @@ fi
 # ---------------------------------------------------------------- verify ----
 fail=0
 for f in color_roles.json laws/color/color-laws.json colors.source.sh \
-         install_hook.sh validate_color_roles.sh color-cli.sh vocabulary.json .version; do
+         install_hook.sh validate_color_roles.sh color-cli.sh vocabulary.json alias-reference.txt .version; do
   [ -e "$RUNTIME_DIR/$f" ] || { error "Missing after install: $RUNTIME_DIR/$f"; fail=1; }
 done
 for f in install_hook.sh validate_color_roles.sh; do

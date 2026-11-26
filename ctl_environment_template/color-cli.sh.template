@@ -4,6 +4,16 @@ color() {
   local sub="${1:-help}"
   if [ "$#" -gt 0 ]; then shift; fi
   case "$sub" in
+    aliases)
+      if [ "$#" -eq 0 ]; then
+        __color_aliases inspect
+      elif [ "$#" -eq 1 ] && [ "$1" = update ]; then
+        __color_aliases update
+      else
+        printf 'Usage: color aliases [update]\n' >&2
+        return 2
+      fi
+      return ;;
     man|search) __color_vocabulary "$sub" "$@"; return ;;
     doctor)
       if [ "$#" -eq 0 ]; then
@@ -28,7 +38,7 @@ color() {
     return 2
   fi
   case "$sub" in
-    help|-h|--help) printf '%s\n' 'Usage: color {update|backup|restore <backup-runtime-path>|help|version|list|validate}' '       color man [term]' '       color search <keyword>' '       color doctor [--fix]' '       color reload' ;;
+    help|-h|--help) printf '%s\n' 'Usage: color {update|backup|restore <backup-runtime-path>|help|version|list|validate}' '       color man [term]' '       color search <keyword>' '       color doctor [--fix]' '       color reload' '       color aliases [update]' ;;
     version) cat "$COLOR_RUNTIME_HOME/.version" ;;
     list) color_roles ;;
     validate) color_validate ;;
@@ -43,6 +53,130 @@ color() {
       ;;
     *) printf 'color: unknown command %s; see color help\n' "$sub" >&2; return 2 ;;
   esac
+}
+
+
+# Opt-in managed Color shortcuts. The existing alias template is reference
+# data here: never source it or the personal file during inspection/update.
+# A mkdir marker is durable, and shares the runtime transaction lock.
+__color_alias_enable() (
+  local rt="$COLOR_RUNTIME_HOME" lock="$COLOR_RUNTIME_HOME.update-lock" marker
+  marker="$rt/aliases.enabled"
+  mkdir -- "$lock" || { echo 'color aliases: runtime transaction lock held' >&2; return 1; }
+  trap 'rmdir -- "$lock"' EXIT
+  if [ -L "$marker" ] || { [ -e "$marker" ] && ! [ -d "$marker" ]; }; then
+    echo 'color aliases: unsafe enable marker' >&2
+    return 1
+  fi
+  [ -d "$marker" ] || mkdir -- "$marker"
+)
+
+__color_aliases() {
+  local mode="$1" rt="$COLOR_RUNTIME_HOME" reference personal marker name line actual rc
+  local re="^alias (colorreload|colortest|colorroles)='([^']*)'$"
+  local -a names=(colorreload colortest colorroles)
+  local -A desired=() available=()
+  reference="$rt/alias-reference.txt"
+  personal="$HOME/.bash_aliases"
+  marker="$rt/aliases.enabled"
+  if [[ "$rt" != /* ]] || ! [ -d "$rt" ] || [ -L "$rt" ] ||
+     [ "$(readlink -f -- "$rt")" != "$rt" ] ||
+     [ -L "$reference" ] || ! [ -f "$reference" ] || ! [ -r "$reference" ] ||
+     [ -L "$marker" ] || { [ -e "$marker" ] && ! [ -d "$marker" ]; }; then
+    echo 'color aliases: unsafe or missing runtime reference/marker' >&2
+    return 1
+  fi
+  if [ -L "$personal" ] || { [ -e "$personal" ] &&
+       { ! [ -f "$personal" ] || ! [ -r "$personal" ]; }; }; then
+    echo 'color aliases: unsafe or unreadable personal alias path' >&2
+    return 1
+  fi
+  # Syntax check only; no BASH_ENV startup code and no personal evaluation.
+  if [ -f "$personal" ] && ! env -u BASH_ENV -u ENV bash --noprofile --norc -n -- "$personal"; then
+    echo 'color aliases: personal alias syntax invalid; no changes made' >&2
+    return 1
+  fi
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      'alias colorreload='*|'alias colortest='*|'alias colorroles='*)
+        if ! [[ "$line" =~ $re ]]; then
+          echo 'color aliases: invalid shipped alias declaration' >&2
+          return 1
+        fi
+        name="${BASH_REMATCH[1]}"
+        if [[ -n "${desired[$name]+x}" ]] || [ -z "${BASH_REMATCH[2]}" ]; then
+          echo 'color aliases: duplicate or empty shipped alias' >&2
+          return 1
+        fi
+        desired[$name]="${BASH_REMATCH[2]}"
+        ;;
+    esac
+  done < "$reference"
+  for name in "${names[@]}"; do
+    if [[ -z "${desired[$name]+x}" ]]; then
+      printf 'color aliases: missing shipped definition: %s\n' "$name" >&2
+      return 1
+    fi
+  done
+  if [ "$mode" = inspect ]; then
+    if [ -d "$marker" ]; then echo 'Managed Color shortcuts: enabled'
+    else echo 'Managed Color shortcuts: not enabled'; fi
+  fi
+  for name in "${names[@]}"; do
+    if actual=$(builtin alias "$name" 2>/dev/null); then
+      if [ "$actual" = "alias $name='${desired[$name]}'" ]; then
+        [ "$mode" = startup ] || printf 'PRESENT %s (unchanged)\n' "$name"
+      else
+        printf 'CONFLICT %s: existing shell alias retained\n' "$name" >&2
+      fi
+    elif builtin type -t "$name" >/dev/null 2>&1; then
+      printf 'CONFLICT %s: existing command/function retained\n' "$name" >&2
+    else
+      # Before startup we cannot know whether a personal declaration has
+      # already been evaluated. Conservatively skip any literal reference.
+      # At startup the personal file has already been loaded normally.
+      if [ "$mode" != startup ] && [ -f "$personal" ]; then
+        rc=0
+        grep -Fq -- "$name" "$personal" || rc=$?
+        case "$rc" in
+          0) printf 'POSSIBLE CONFLICT %s: personal file references name; deferred until shell startup\n' "$name" >&2; continue ;;
+          1) ;;
+          *) echo 'color aliases: cannot inspect personal file' >&2; return 1 ;;
+        esac
+      fi
+      available[$name]=1
+      [ "$mode" != inspect ] || printf 'AVAILABLE %s = %s\n' "$name" "${desired[$name]}"
+    fi
+  done
+  if [ "$mode" = inspect ]; then
+    echo 'Inspection covers active shell definitions and literal personal-file references; dynamic shell code is not evaluated.'
+    return 0
+  fi
+  if [ "$mode" = update ]; then
+    __color_alias_enable || return
+  fi
+  for name in "${names[@]}"; do
+    if [[ -n "${available[$name]+x}" ]]; then
+      # Expand the catalog value now, without evaluating its literal contents.
+      # shellcheck disable=SC2139
+      builtin alias "$name=${desired[$name]}" || return
+      [ "$mode" = startup ] || printf 'ADDED %s to current shell\n' "$name"
+    fi
+  done
+  if [ "$mode" = update ]; then
+    echo 'Managed shortcuts enabled; personal alias file unchanged.'
+    echo 'For future shells, run the normal installer once if the startup hook is absent (not --skip-aliases).'
+    echo 'Existing shell definitions take precedence; dynamic personal code is not evaluated here.'
+  fi
+}
+
+# Invoked only by the managed startup block, after its normal personal alias
+# sourcing step. Older startup blocks require a normal reinstall once.
+__color_aliases_startup() {
+  local marker="$COLOR_RUNTIME_HOME/aliases.enabled"
+  if [ -e "$marker" ] || [ -L "$marker" ]; then
+    __color_aliases startup
+  fi
 }
 
 # Read the shipped reference, not the checkout or the mutable role schema.

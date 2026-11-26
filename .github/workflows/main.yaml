@@ -164,6 +164,9 @@ jobs:
       - name: "CLI: backup and configuration restore"
         run: bash scripts/test-color-recovery.sh
 
+      - name: "CLI: managed alias safety and idempotence"
+        run: bash scripts/test-color-aliases.sh
+
       - name: "Uninstall: leaves nothing behind, install works after"
         run: |
           (
