@@ -111,7 +111,8 @@ color reload
 [ ! -e "$work/unsafe-cache-executed" ]
 cmp "$work/doctor-original/cache/roles.sh" "$rt/cache/roles.sh"
 # Prove reload updates the calling shell even when cache bytes are current.
-COLOR_ROLE_HEX[test_custom]='#000000'
+unset 'COLOR_ROLE_HEX[test_custom]'
+if get_color_by_role test_custom; then exit 1; fi
 color_reload
 [ "$(get_color_by_role test_custom)" = '#FFAA55' ]
 # Unknown conditions are not repair authorization.
