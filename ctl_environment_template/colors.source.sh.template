@@ -123,65 +123,7 @@ __color_ls_sgr() {
   local hex ansi
   hex="$(get_color_by_role "$1")" || return 1
   ansi="$(hex_to_ansi "$hex")" || return 1
-  ansi="${ansi#
-  [ "$COLOR_SYSTEM_READY" -eq 1 ] || { echo "colour system not loaded" >&2; return 1; }
-  local role
-  for role in $(printf '%s\n' "${!COLOR_ROLE_HEX[@]}" | sort); do
-    printf '%-14s %s  ' "$role" "${COLOR_ROLE_HEX[$role]}"
-    color_apply "$role" "sample"
-  done
-}
-
-color_reload() { rm -f "$COLOR_CACHE_FILE"; __color_load; }
-
-# Prints everything needed to diagnose a "wrong file" or "not loading" problem
-# in one shot, so a bug report never needs a second round trip.
-color_doctor() {
-  echo "runtime home   : $COLOR_RUNTIME_HOME"
-  echo "schema         : $COLOR_ROLE_SCHEMA_PATH"
-  echo "  exists       : $([ -r "$COLOR_ROLE_SCHEMA_PATH" ] && echo yes || echo NO)"
-  echo "  roles        : $(command -v jq >/dev/null && jq length "$COLOR_ROLE_SCHEMA_PATH" 2>/dev/null || echo '?')"
-  echo "laws           : $COLOR_LAWS_PATH"
-  echo "  exists       : $([ -r "$COLOR_LAWS_PATH" ] && echo yes || echo NO)"
-  echo "cache          : $COLOR_CACHE_FILE"
-  echo "  exists       : $([ -r "$COLOR_CACHE_FILE" ] && echo yes || echo NO)"
-  echo "loaded         : $COLOR_SYSTEM_READY  (${#COLOR_ROLE_HEX[@]} roles in memory)"
-  echo "jq             : $(command -v jq || echo 'NOT FOUND') $(jq --version 2>/dev/null)"
-  echo "bash           : $BASH_VERSION"
-  echo "COLOR_* in env :"
-  # Capture first: a pipeline's status is the last command's (sed, always 0),
-  # so the old `... | sed ... || echo "(none)"` could never print "(none)".
-  local _color_env
-  _color_env="$(env | grep -i '^COLOR' | sed 's/^/  /' || true)"
-  if [ -n "$_color_env" ]; then printf '%s\n' "$_color_env"; else echo "  (none)"; fi
-}
-
-# Enforcement is delegated to the single engine, never reimplemented here.
-color_validate() {
-  local v="$COLOR_RUNTIME_HOME/validate_color_roles.sh"
-  if [ -x "$v" ]; then
-    "$v" "$@" "$COLOR_ROLE_SCHEMA_PATH" "$COLOR_LAWS_PATH"
-  else
-    echo "validator not installed at $v" >&2
-    return 1
-  fi
-}
-
-__color_load || true
-
-# ---------- prompt ----------
-if [ -z "${COLOR_PROMPT_DISABLE:-}" ] && [ "$COLOR_SYSTEM_READY" -eq 1 ]; then
-  case "$-" in
-    *i*)
-      __color_prompt_ansi="${COLOR_ROLE_ANSI[prompt]:-}"
-      if [ -n "$__color_prompt_ansi" ]; then
-        PS1="\[${__color_prompt_ansi}\]\u@\h:\w\$\[\033[0m\] "
-      fi
-      unset __color_prompt_ansi
-      ;;
-  esac
-fi
-\033['}"
+  ansi="${ansi#$'\033['}"
   printf '%s' "${ansi%m}"
 }
 
