@@ -11,22 +11,28 @@ set -euo pipefail
 usage() {
   cat <<USAGE
 Usage: $0 <role_name> <category> <hierarchy> [--hex "#RRGGBB"] [--replace]
+       $0 --edit <role_name> [<category> <hierarchy>] --hex "#RRGGBB"
+       $0 --preview <role_name> --hex "#RRGGBB"
 
 Registers a role and assigns it a policy-compliant colour. If --hex is given
 it must itself satisfy color-laws.json, otherwise a compliant colour is
-generated automatically. --replace overwrites a role that already exists.
+generated automatically. --replace explicitly permits an existing role.
+--edit requires an existing role and preserves its identity metadata.
+--preview validates a hypothetical hex change and prints its hierarchy only.
 
 Example: $0 nginx infrastructure parent
 USAGE
 }
 
 ROLE_NAME=""; CATEGORY=""; HIERARCHY=""; WANT_HEX=""
-REPLACE=false
+REPLACE=false; EDIT=false; PREVIEW=false; HEX_GIVEN=false
 POSITIONAL=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --hex) [ $# -ge 2 ] || { echo "--hex requires a value" >&2; exit 2; }; WANT_HEX="$2"; shift 2 ;;
+    --hex) [ $# -ge 2 ] && ! $HEX_GIVEN && [ -n "$2" ] || { echo "--hex requires one nonempty value" >&2; exit 2; }; HEX_GIVEN=true; WANT_HEX="$2"; shift 2 ;;
     --replace) REPLACE=true; shift ;;
+    --edit) EDIT=true; shift ;;
+    --preview) PREVIEW=true; shift ;;
     -h|--help) usage; exit 0 ;;
     -*) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
     *) POSITIONAL+=("$1"); shift ;;
@@ -35,8 +41,26 @@ done
 set -- "${POSITIONAL[@]+"${POSITIONAL[@]}"}"
 ROLE_NAME="${1:-}"; CATEGORY="${2:-}"; HIERARCHY="${3:-}"
 
-if [ -z "$ROLE_NAME" ] || [ -z "$CATEGORY" ] || [ -z "$HIERARCHY" ]; then
+if { $EDIT && $PREVIEW; } || { $REPLACE && { $EDIT || $PREVIEW; }; }; then
   usage >&2; exit 2
+fi
+if $EDIT || $PREVIEW; then
+  if ! $HEX_GIVEN || { [ "$#" -ne 1 ] && { $PREVIEW || [ "$#" -ne 3 ]; }; }; then
+    usage >&2; exit 2
+  fi
+elif [ "$#" -ne 3 ]; then
+  usage >&2; exit 2
+fi
+# Names are literal lookup keys, not shell expressions or options.
+if ! [[ "$ROLE_NAME" =~ ^[A-Za-z_][A-Za-z0-9_.-]*$ ]]; then
+  echo 'ERROR: invalid role name.' >&2; exit 2
+fi
+if [ "$#" -eq 3 ] && { ! [[ "$CATEGORY" =~ [^[:space:]] ]] ||
+     [[ "$CATEGORY" =~ [[:cntrl:]] ]] || ! [[ "$HIERARCHY" =~ ^[A-Za-z_][A-Za-z0-9_.-]*$ ]]; }; then
+  echo 'ERROR: invalid category or hierarchy.' >&2; exit 2
+fi
+if $HEX_GIVEN && ! [[ "$WANT_HEX" =~ ^#[0-9A-Fa-f]{6}$ ]]; then
+  echo 'ERROR: expected a six-digit #RRGGBB colour.' >&2; exit 2
 fi
 
 command -v jq >/dev/null 2>&1 || { echo "ERROR: jq is required." >&2; exit 2; }
@@ -51,46 +75,82 @@ fi
 LAWS_PATH="${COLOR_LAWS_PATH:-$RUNTIME_HOME/laws/color/color-laws.json}"
 VALIDATOR="$RUNTIME_HOME/validate_color_roles.sh"
 
-[ -e "$SCHEMA_PATH" ] || { echo "ERROR: schema not found at $SCHEMA_PATH" >&2; exit 2; }
-# Resolve symlinks so the atomic replace never converts a link into a file.
+# Serialize direct hooks with CLI update/restore/backup/repair. The lock
+# belongs to the real runtime; never accept a caller-supplied lock bypass.
+if ! [ -d "$RUNTIME_HOME" ] || [ "$(readlink -f "$RUNTIME_HOME")" != "$SELF_DIR" ]; then
+  echo 'ERROR: hook runtime must match its installed location.' >&2; exit 1
+fi
+RUNTIME_HOME="$SELF_DIR"
+LOCK="$RUNTIME_HOME.update-lock"
+WORK=''; TMP=''; BACKUP=''; LOCKED=false; PROMOTED=false; COMMITTED=false
+cleanup() {
+  local status=$?
+  trap - EXIT HUP INT TERM
+  if $PROMOTED && ! $COMMITTED; then
+    if ! mv -f -- "$BACKUP" "$SCHEMA_PATH"; then
+      printf 'RECOVERY REQUIRED: role backup at %s; lock retained\n' "$BACKUP" >&2
+      exit 2
+    fi
+    BACKUP=''
+  fi
+  [ -z "$TMP" ] || rm -f -- "$TMP"
+  [ -z "$BACKUP" ] || rm -f -- "$BACKUP"
+  [ -z "$WORK" ] || rm -rf -- "$WORK"
+  if $LOCKED; then rmdir -- "$LOCK" || exit 2; fi
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+if ! $PREVIEW; then
+  mkdir -- "$LOCK" || { echo 'ERROR: another runtime transaction owns the lock.' >&2; exit 1; }
+  LOCKED=true
+elif [ -e "$LOCK" ] || [ -L "$LOCK" ]; then
+  echo 'ERROR: runtime transaction in progress.' >&2; exit 1
+fi
+
+[ -f "$SCHEMA_PATH" ] && [ -r "$SCHEMA_PATH" ] || { echo "ERROR: schema unavailable: $SCHEMA_PATH" >&2; exit 1; }
+# Preserve the historical external-schema option (e.g. policy test fixtures).
+# For managed paths, reject symlinks rather than silently redirecting writes.
+if [ "$SCHEMA_PATH" = "$RUNTIME_HOME/color_roles.json" ] && [ "$(readlink -f "$SCHEMA_PATH")" != "$SCHEMA_PATH" ]; then
+  echo 'ERROR: unsafe managed schema path.' >&2; exit 1
+fi
 SCHEMA_PATH="$(readlink -f "$SCHEMA_PATH")"
+if ! [ -x "$VALIDATOR" ] || ! [ -r "$LAWS_PATH" ] ||
+   ! jq -e 'type == "object" and (.schema_version | type == "number" and . >= 2)' "$LAWS_PATH" >/dev/null ||
+   ! "$VALIDATOR" --quiet "$SCHEMA_PATH" "$LAWS_PATH" >/dev/null; then
+  echo 'ERROR: current schema or policy failed validation; refusing role operation.' >&2; exit 1
+fi
 
-jq empty "$SCHEMA_PATH" >/dev/null 2>&1 || { echo "ERROR: $SCHEMA_PATH is not valid JSON. Refusing to write." >&2; exit 1; }
-
-if [ "$(jq -r --arg r "$ROLE_NAME" 'any(.[]; .role == $r)' "$SCHEMA_PATH")" = "true" ]; then
-  if $REPLACE; then
-    echo "Replacing existing role '$ROLE_NAME'."
-  else
-    echo "ERROR: role '$ROLE_NAME' already exists." >&2
-    echo "  schema:   $SCHEMA_PATH" >&2
-    echo "  existing: $(jq -c --arg r "$ROLE_NAME" 'map(select(.role == $r))[0]' "$SCHEMA_PATH")" >&2
-    echo "  If that is not the schema you expected, check COLOR_ROLE_SCHEMA_PATH" >&2
-    echo "  and COLOR_RUNTIME_HOME in your environment:" >&2
-    env | grep -i '^COLOR' | sed 's/^/    /' >&2 || echo "    (no COLOR_* variables set)" >&2
-    echo "  Use --replace to overwrite it." >&2
+COUNT="$(jq -r --arg r "$ROLE_NAME" '[.[] | select(.role == $r)] | length' "$SCHEMA_PATH")"
+if [ "$COUNT" -gt 1 ]; then
+  echo 'ERROR: ambiguous role.' >&2; exit 1
+elif [ "$COUNT" -eq 1 ]; then
+  if ! $REPLACE && ! $EDIT && ! $PREVIEW; then
+    printf "ERROR: role '%s' already exists; use --edit or --replace.\n" "$ROLE_NAME" >&2
     exit 1
   fi
+  if [ "$#" -eq 1 ]; then
+    CATEGORY="$(jq -er --arg r "$ROLE_NAME" '.[] | select(.role == $r) | .category' "$SCHEMA_PATH")"
+    HIERARCHY="$(jq -er --arg r "$ROLE_NAME" '.[] | select(.role == $r) | .hierarchy' "$SCHEMA_PATH")"
+  fi
+elif $EDIT || $PREVIEW; then
+  printf "ERROR: unknown role '%s'.\n" "$ROLE_NAME" >&2; exit 1
 fi
 
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
 
 # Pull the colour policy from the engine ONCE. Rules still live in
 # color-laws.json; only their extraction happens here. Testing candidates
 # locally instead of forking the validator per attempt is the difference
 # between one subprocess and two hundred.
 CONSTRAINTS="$WORK/laws.env"
-if [ -x "$VALIDATOR" ] && "$VALIDATOR" --emit-constraints "$SCHEMA_PATH" "$LAWS_PATH" > "$CONSTRAINTS" 2>/dev/null; then
-  # shellcheck source=/dev/null
-  . "$CONSTRAINTS"
-else
-  # shellcheck disable=SC2034  # set for parity with --emit-constraints output
-  COLOR_LAW_HEX_PATTERN='^#[0-9A-Fa-f]{6}$'
-  COLOR_LAW_FORBID_WHITE='#FFFFFF'; COLOR_LAW_FORBID_BLACK='#000000'
-  COLOR_LAW_LUM_MIN=24; COLOR_LAW_LUM_MAX=247; COLOR_LAW_LUM_ENABLED=true
-  COLOR_LAW_HIERARCHIES='parent child cousin alert feedback language runtime'
-  COLOR_LAW_CONTRAST_ENABLED=false
+if ! "$VALIDATOR" --emit-constraints "$SCHEMA_PATH" "$LAWS_PATH" > "$CONSTRAINTS"; then
+  echo 'ERROR: cannot read policy constraints.' >&2; exit 1
 fi
+# shellcheck source=/dev/null
+. "$CONSTRAINTS"
 
 # ---- pre-flight -----------------------------------------------------------
 # Reject non-colour problems BEFORE generating anything. Previously an invalid
@@ -161,24 +221,22 @@ hex_ok() {
 
 # Authoritative verdict. Delegated to the single engine; no rules here.
 check_candidate() {
-  if [ -x "$VALIDATOR" ]; then
-    "$VALIDATOR" --quiet "$1" "$LAWS_PATH" >/dev/null 2>&1
-  else
-    local h
-    h="$(jq -r --arg r "$ROLE_NAME" 'map(select(.role == $r))[0].hex_value' "$1")"
-    hex_ok "$h"
-  fi
+  "$VALIDATOR" --quiet "$1" "$LAWS_PATH" >/dev/null 2>&1
 }
 
 build_candidate() {  # build_candidate <hex> <outfile>
   jq --arg role "$ROLE_NAME" --arg category "$CATEGORY" \
      --arg hex "$1" --arg hierarchy "$HIERARCHY" \
      --arg code "COLOR_$(echo "$ROLE_NAME" | tr '[:lower:]' '[:upper:]' | tr -cd '[:alnum:]_')" '
-     map(select(.role != $role)) + [{
+     if any(.[]; .role == $role) then
+       map(if .role == $role then . + {category:$category, hex_value:$hex, hierarchy:$hierarchy} else . end)
+     elif any(.[]; .color_code == $code) then
+       error("role color_code conflicts with existing identity")
+     else . + [{
        role: $role, category: $category, color_code: $code,
        hex_value: $hex, hierarchy: $hierarchy, source_type: "dynamic",
        app_linked: $role, install_hook: ("hook_" + $role + "_installed")
-     }]' "$SCHEMA_PATH" > "$2"
+     }] end' "$SCHEMA_PATH" > "$2"
 }
 
 CANDIDATE="$WORK/candidate.json"
@@ -221,24 +279,34 @@ if ! check_candidate "$CANDIDATE"; then
   exit 1
 fi
 
-# Commit atomically, then re-validate the live file. Roll back on failure.
-BACKUP="$WORK/rollback.json"
-cp "$SCHEMA_PATH" "$BACKUP"
-# mktemp creates 0600; preserve the schema's mode across the atomic replace.
-SCHEMA_MODE="$(stat -c %a "$SCHEMA_PATH" 2>/dev/null || echo 644)"
-TMP="$(mktemp "${SCHEMA_PATH}.XXXXXX")"
-cat "$CANDIDATE" > "$TMP"
-chmod "$SCHEMA_MODE" "$TMP"
-mv "$TMP" "$SCHEMA_PATH"
-
-if ! check_candidate "$SCHEMA_PATH"; then
-  cp "$BACKUP" "$SCHEMA_PATH"
-  chmod "$SCHEMA_MODE" "$SCHEMA_PATH" 2>/dev/null || true
-  echo "ERROR: post-write validation failed. Schema rolled back, no changes made." >&2
-  exit 1
+if $PREVIEW; then
+  # No live role/cache writes, no lock creation. This is an observation, not
+  # authorization to commit later; every edit independently revalidates.
+  if [ -e "$LOCK" ] || [ -L "$LOCK" ]; then
+    echo 'ERROR: runtime transaction in progress.' >&2; exit 1
+  fi
+  printf '%s\n' "$HIERARCHY"
+  exit 0
 fi
 
-if $REPLACE; then
+# Stage both files on the schema filesystem; preserve permissions. The EXIT
+# trap restores the original by rename on post-write rejection or interruption.
+BACKUP="$(mktemp "$SCHEMA_PATH.rollback.XXXXXX")"
+cp -p -- "$SCHEMA_PATH" "$BACKUP"
+TMP="$(mktemp "$SCHEMA_PATH.candidate.XXXXXX")"
+cat "$CANDIDATE" > "$TMP"
+chmod --reference="$SCHEMA_PATH" "$TMP"
+# Mark before rename: interruption in the small window is also rolled back.
+PROMOTED=true
+mv -f -- "$TMP" "$SCHEMA_PATH"
+TMP=''
+if ! check_candidate "$SCHEMA_PATH"; then
+  echo 'ERROR: post-write validation failed; restoring prior schema.' >&2
+  exit 1
+fi
+COMMITTED=true
+
+if [ "$COUNT" -eq 1 ]; then
   echo "Role '$ROLE_NAME' updated with colour $CHOSEN"
 else
   echo "Role '$ROLE_NAME' registered with colour $CHOSEN"
