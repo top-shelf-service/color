@@ -164,6 +164,9 @@ jobs:
       - name: "CLI: role management and failure isolation"
         run: bash scripts/test-color-roles.sh
 
+      - name: "CLI: managed alias safety and idempotence"
+        run: bash scripts/test-color-aliases.sh
+
       - name: "CLI: backup and configuration restore"
         run: bash scripts/test-color-recovery.sh
 
