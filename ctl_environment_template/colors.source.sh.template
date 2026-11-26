@@ -219,6 +219,12 @@ color_validate() {
 
 __color_load || true
 
+# CLI is refreshed by the existing installer, not by personal aliases.
+if [ -r "$COLOR_RUNTIME_HOME/color-cli.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$COLOR_RUNTIME_HOME/color-cli.sh"
+fi
+
 # ---------- prompt ----------
 if [ -z "${COLOR_PROMPT_DISABLE:-}" ] && [ "$COLOR_SYSTEM_READY" -eq 1 ]; then
   case "$-" in
