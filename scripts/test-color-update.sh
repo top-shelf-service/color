@@ -77,6 +77,85 @@ mv "$work/missing-vocabulary" "$rt/vocabulary.json"
 cp "$rt/color_roles.json" "$work/roles"
 cp "$HOME/.bashrc" "$work/bashrc"
 cp "$HOME/.bash_aliases" "$work/aliases"
+# Doctor is observational; repair/reload share the transaction lock.
+color reload
+[ "$(get_color_by_role test_custom)" = '#FFAA55' ]
+cp -a "$rt" "$work/doctor-original"
+cache_stat=$(stat -c '%i:%s:%y' "$rt/cache/roles.sh")
+color doctor > "$work/doctor"
+grep -Fq 'HEALTHY' "$work/doctor"
+diff -qr "$work/doctor-original" "$rt"
+[ "$(stat -c '%i:%s:%y' "$rt/cache/roles.sh")" = "$cache_stat" ]
+[ ! -e "$rt.update-lock" ]
+reject 2 doctor extra
+reject 2 doctor --fix extra
+reject 2 reload extra
+rm "$rt/cache/roles.sh"
+status=0
+color doctor > "$work/doctor" 2>&1 || status=$?
+[ "$status" -eq 3 ]
+grep -Fq 'REPAIRABLE' "$work/doctor"
+[ ! -e "$rt/cache/roles.sh" ] && [ ! -e "$rt.update-lock" ]
+color doctor --fix
+cmp "$work/doctor-original/cache/roles.sh" "$rt/cache/roles.sh"
+[ "$(get_color_by_role test_custom)" = '#FFAA55' ]
+# Byte drift even with a current timestamp/header must not be sourced.
+printf 'touch %q\n' "$work/unsafe-cache-executed" >> "$rt/cache/roles.sh"
+cp "$rt/cache/roles.sh" "$work/corrupt-cache"
+status=0
+color doctor > "$work/doctor" 2>&1 || status=$?
+[ "$status" -eq 3 ]
+cmp "$work/corrupt-cache" "$rt/cache/roles.sh"
+[ ! -e "$work/unsafe-cache-executed" ]
+color reload
+[ ! -e "$work/unsafe-cache-executed" ]
+cmp "$work/doctor-original/cache/roles.sh" "$rt/cache/roles.sh"
+# Prove reload updates the calling shell even when cache bytes are current.
+COLOR_ROLE_HEX[test_custom]='#000000'
+color_reload
+[ "$(get_color_by_role test_custom)" = '#FFAA55' ]
+# Unknown conditions are not repair authorization.
+doctor_refuses() {
+  local status=0
+  color doctor > "$work/doctor" 2>&1 || status=$?
+  [ "$status" -eq 1 ]
+  grep -Fq 'UNKNOWN' "$work/doctor"
+  if color doctor --fix || color reload; then
+    echo 'Unsafe repair/reload accepted' >&2
+    exit 1
+  fi
+}
+mkdir "$rt.update-lock"
+doctor_refuses
+[ -d "$rt.update-lock" ]
+rmdir "$rt.update-lock"
+mv "$rt/colors.source.sh" "$work/missing-loader"
+doctor_refuses
+[ ! -e "$rt/colors.source.sh" ]
+mv "$work/missing-loader" "$rt/colors.source.sh"
+mv "$rt/laws/color/color-laws.json" "$work/missing-laws"
+doctor_refuses
+[ ! -e "$rt/laws/color/color-laws.json" ]
+mv "$work/missing-laws" "$rt/laws/color/color-laws.json"
+printf '%s\n' '{broken' > "$rt/color_roles.json"
+doctor_refuses
+grep -Fxq '{broken' "$rt/color_roles.json"
+cmp "$work/doctor-original/cache/roles.sh" "$rt/cache/roles.sh"
+cp -p "$work/roles" "$rt/color_roles.json"
+mv "$rt/cache/roles.sh" "$work/outside-cache"
+ln -s "$work/outside-cache" "$rt/cache/roles.sh"
+doctor_refuses
+[ -L "$rt/cache/roles.sh" ]
+cmp "$work/doctor-original/cache/roles.sh" "$work/outside-cache"
+rm "$rt/cache/roles.sh"
+mv "$work/outside-cache" "$rt/cache/roles.sh"
+color reload
+diff -qr "$work/doctor-original" "$rt"
+cmp "$work/roles" "$rt/color_roles.json"
+cmp "$work/bashrc" "$HOME/.bashrc"
+cmp "$work/aliases" "$HOME/.bash_aliases"
+[ ! -e "$rt.update-lock" ]
+printf 'CLI diagnostics and safe cache repair contract passed.\n'
 sed -i 's/VERSION="3.4.0"/VERSION="3.4.1"/' "$work/upstream/install.sh"
 # Change the reference in the candidate, not the trusted checkout.
 jq '(.terms[] | select(.id == "file") | .example) = "updated-reference-fixture.txt"' \

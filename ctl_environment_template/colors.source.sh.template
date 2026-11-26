@@ -59,17 +59,20 @@ hex_to_ansi() {
 }
 
 # ---------- cache compilation ----------
+# The same emitter supports read-only comparison and atomic compilation.
+__color_emit_cache() {
+  printf '%s\n' "# color-cache-v2: generated from $COLOR_ROLE_SCHEMA_PATH - do not edit" &&
+    jq -r '.[] | select(.role and .hex_value)
+           | "COLOR_ROLE_HEX[\(.role|@sh)]=\(.hex_value|@sh)\nCOLOR_ROLE_HIERARCHY[\(.role|@sh)]=\((.hierarchy // "")|@sh)"' \
+      "$COLOR_ROLE_SCHEMA_PATH" 2>/dev/null
+}
+
 __color_compile_cache() {
   command -v jq >/dev/null 2>&1 || return 1
   local dir; dir="$(dirname "$COLOR_CACHE_FILE")"
   mkdir -p "$dir" 2>/dev/null || return 1
   local tmp; tmp="$(mktemp "$COLOR_CACHE_FILE.XXXXXX" 2>/dev/null)" || return 1
-  {
-    echo "# color-cache-v2: generated from $COLOR_ROLE_SCHEMA_PATH - do not edit"
-    jq -r '.[] | select(.role and .hex_value)
-           | "COLOR_ROLE_HEX[\(.role|@sh)]=\(.hex_value|@sh)\nCOLOR_ROLE_HIERARCHY[\(.role|@sh)]=\((.hierarchy // "")|@sh)"' \
-      "$COLOR_ROLE_SCHEMA_PATH" 2>/dev/null
-  } > "$tmp" || { rm -f "$tmp"; return 1; }
+  __color_emit_cache > "$tmp" || { rm -f "$tmp"; return 1; }
   mv "$tmp" "$COLOR_CACHE_FILE" 2>/dev/null || { rm -f "$tmp"; return 1; }
   return 0
 }
@@ -90,9 +93,15 @@ __color_load() {
       __color_warn "using stale role cache; run 'color_reload' after installing jq"
     fi
   fi
+  __color_read_cache "$COLOR_CACHE_FILE"
+}
+
+# Load either the normal cache or the verified snapshot from a locked repair.
+__color_read_cache() {
+  COLOR_SYSTEM_READY=0
   COLOR_ROLE_HEX=() COLOR_ROLE_ANSI=() COLOR_ROLE_HIERARCHY=()
   # shellcheck source=/dev/null
-  . "$COLOR_CACHE_FILE" || return 1
+  . "$1" || return 1
   local role
   for role in "${!COLOR_ROLE_HEX[@]}"; do
     COLOR_ROLE_ANSI["$role"]="$(hex_to_ansi "${COLOR_ROLE_HEX[$role]}" || true)"
@@ -182,7 +191,14 @@ color_roles() {
   done
 }
 
-color_reload() { rm -f "$COLOR_CACHE_FILE"; __color_load; }
+color_reload() {
+  if declare -F color >/dev/null; then
+    color reload
+  else
+    echo 'color reload: management CLI unavailable; manual recovery required' >&2
+    return 1
+  fi
+}
 
 # Prints everything needed to diagnose a "wrong file" or "not loading" problem
 # in one shot, so a bug report never needs a second round trip.
