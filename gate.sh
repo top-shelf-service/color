@@ -31,7 +31,7 @@ else
   G='\033[0;32m'; R='\033[0;31m'; Y='\033[1;33m'; B='\033[0;34m'; DIM='\033[2m'; NC='\033[0m'
 fi
 
-TOTAL=36
+TOTAL=37
 n=0; pass=0; fail=0; skip=0
 declare -a FAILED=()
 START=$(date +%s)
@@ -339,6 +339,10 @@ c28() { newhome; inst
           "$RT/install_hook.sh" newrole deployment child --hex '#2A2A2A' >/dev/null 2>&1 &&
         [ "$(jq -r 'any(.[]; .role == "newrole")' "$H/dark.json")" = true ]; }
 t "hook registers a dark role against a light background" c28
+
+section "FILESYSTEM RENDERING"
+c29() { newhome; inst && "${CLEAN[@]}" HOME="$H" bash scripts/test-filesystem-rendering.sh "$RT/colors.source.sh"; }
+t "semantic filenames and classification symbols" c29
 
 # ----------------------------------------------------------------- summary --
 ELAPSED=$(( $(date +%s) - START ))

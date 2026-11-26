@@ -39,6 +39,7 @@ symlinks, move the runtime anywhere, and it still works.
 | Command | Does |
 |---|---|
 | `color_apply <role> "text"` | Print text in that role's colour |
+| `color_ls [path ...]` | Semantic long filesystem listing with matching classification symbols |
 | `color_roles` / `colorroles` | List every role with a colour sample |
 | `colortest` | Print one sample per common role |
 | `color_validate` | Check the live schema against the policy |
@@ -84,6 +85,12 @@ bright roles instead. `require_luminance_range` is a background-independent
 guard that uses luminance rather than per-channel limits, so saturated terminal
 semantics like `#FF0000` stay legal while `#0A0A0A` does not. Tighten a rule and both the
 installer and the role generator tighten with it automatically.
+
+### Rendering contract: semantic identity and symbol inheritance
+
+Color identifies an object's semantic role. Classification suffixes (such as `*`, `/`, `@`, `|`, `=` and `>`) inherit the associated filename's role color; they must not fall back to the terminal's default foreground or introduce an unregistered pure-white color. Execution and permission attributes remain visible through classification symbols and long-list permission metadata, not by overriding the object's identity color. Broken links use the errors role. This rendering contract is checked by `scripts/test-filesystem-rendering.sh` in CI and the local gate; the JSON color laws still validate role data, not rendered bytes.
+
+Use `color_ls` or `color_ls ~/color` for the managed GNU `ls -alF` view. It accepts paths, not options, and uses the existing schema without modifying ambient `LS_COLORS`. It deliberately leaves native `ls` aliases and metadata unchanged; pipes and `NO_COLOR` or `TERM=dumb` remain plain. Native `ls` remains available for other options. No new roles are required.
 
 ## Installer flags
 

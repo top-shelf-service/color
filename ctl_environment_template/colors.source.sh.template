@@ -117,6 +117,55 @@ color_apply() {
   fi
 }
 
+# Filesystem renderer: filenames express identity; classification suffixes
+# inherit that color. Long-list metadata remains native ls output.
+__color_ls_sgr() {
+  local hex ansi
+  hex="$(get_color_by_role "$1")" || return 1
+  ansi="$(hex_to_ansi "$hex")" || return 1
+  ansi="${ansi#$'\033['}"
+  printf '%s' "${ansi%m}"
+}
+
+__color_ls_render() (
+  set -o pipefail
+  local di file_sgr ln sh ts js err
+  local ls_bin=ls version
+  # Ubuntu 26.04 ships uutils as ls and GNU ls as gnuls.
+  # The ANSI rendering contract is specifically GNU Coreutils.
+  if command -v gnuls >/dev/null 2>&1; then ls_bin=gnuls; fi
+  version="$(command "$ls_bin" --version 2>/dev/null)" || version=''
+  if [[ "$version" != *"GNU coreutils"* ]]; then
+    printf '[color] GNU ls unavailable; using plain listing.\n' >&2
+    command ls --color=never -alF -- "$@"
+    return
+  fi
+  if ! di="$(__color_ls_sgr directory)" ||
+     ! file_sgr="$(__color_ls_sgr files)" ||
+     ! ln="$(__color_ls_sgr links)" ||
+     ! sh="$(__color_ls_sgr scripts)" ||
+     ! ts="$(__color_ls_sgr typescript)" ||
+     ! js="$(__color_ls_sgr javascript)" ||
+     ! err="$(__color_ls_sgr errors)"; then
+    command ls --color=never -alF --quoting-style=shell-escape -- "$@"
+    return
+  fi
+  # Disable attribute color overrides; permissions and -F still show them.
+  # An isolated palette fixes the reset encoding and avoids ambient overrides.
+  LS_COLORS="di=$di:fi=$file_sgr:ln=$ln:ex=00:su=00:sg=00:ca=00:mh=00:tw=$di:ow=$di:st=$di:pi=$file_sgr:so=$file_sgr:bd=$file_sgr:cd=$file_sgr:do=$file_sgr:or=$err:mi=$err:*.sh=$sh:*.ts=$ts:*.tsx=$ts:*.mts=$ts:*.cts=$ts:*.js=$js:*.mjs=$js:*.cjs=$js" \
+    command "$ls_bin" --color=always -alF --quoting-style=shell-escape -- "$@" |
+    sed -E 's/\x1b\[0m([*/@|=>])/\1\x1b[0m/g'
+)
+
+# Paths only; use native ls for arbitrary options and machine-readable output.
+color_ls() {
+  if [ -t 1 ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-dumb}" != dumb ]; then
+    __color_ls_render "$@"
+  else
+    command ls --color=never -alF --quoting-style=shell-escape -- "$@"
+  fi
+}
+
 color_roles() {
   [ "$COLOR_SYSTEM_READY" -eq 1 ] || { echo "colour system not loaded" >&2; return 1; }
   local role
