@@ -3,12 +3,15 @@
 color() {
   local sub="${1:-help}"
   if [ "$#" -gt 0 ]; then shift; fi
+  case "$sub" in
+    man|search) __color_vocabulary "$sub" "$@"; return ;;
+  esac
   if [ "$#" -ne 0 ]; then
     printf 'color: unexpected arguments; see color help\n' >&2
     return 2
   fi
   case "$sub" in
-    help|-h|--help) printf '%s\n' 'Usage: color {update|help|version|list|validate}' ;;
+    help|-h|--help) printf '%s\n' 'Usage: color {update|help|version|list|validate}' '       color man [term]' '       color search <keyword>' ;;
     version) cat "$COLOR_RUNTIME_HOME/.version" ;;
     list) color_roles ;;
     validate) color_validate ;;
@@ -21,6 +24,73 @@ color() {
       ;;
     *) printf 'color: unknown command %s; see color help\n' "$sub" >&2; return 2 ;;
   esac
+}
+
+# Read the shipped reference, not the checkout or the mutable role schema.
+__color_vocabulary() {
+  local mode="$1" query vocab result
+  shift
+  if [ "$#" -gt 1 ] ||
+     { [ "$mode" = search ] && [ "$#" -eq 0 ]; } ||
+     { [ "$#" -eq 1 ] && [[ ! "$1" =~ [^[:space:]] ]]; }; }; then
+    if [ "$mode" = man ]; then
+      echo 'Usage: color man [term] (quote multiword terms)' >&2
+    else
+      echo 'Usage: color search <keyword> (quote multiword keywords)' >&2
+    fi
+    return 2
+  fi
+  query="${1:-}"
+  vocab="$COLOR_RUNTIME_HOME/vocabulary.json"
+  if [ ! -r "$vocab" ]; then
+    echo 'color: installed vocabulary unavailable; run color update or reinstall' >&2
+    return 1
+  fi
+  if ! result=$(jq -r --arg mode "$mode" --arg query "$query" '
+    def normalized: ascii_downcase | gsub("[_.[:space:]-]+"; "");
+    def describe($v):
+      . as $t |
+      ($v.classification.role_to_term | to_entries |
+        map(select(.value == $t.id) | .key) | sort) as $roles |
+      "\(.id) [\(.domain)]\n  Meaning: \(.definition)\n  Example: \(.example)"
+      + (if (.aliases | length) > 0 then "\n  Aliases: \(.aliases | join(", "))" else "" end)
+      + (if ($roles | length) > 0 then "\n  Color roles: \($roles | join(", "))" else "" end);
+    . as $v |
+    if $mode == "man" then
+      if $query == "" then
+        "Color vocabulary v\(.version) — use color man <term> or color search <keyword>",
+        (.domains[] | .id as $d |
+          "\n=== \(.title) ===",
+          ($v.terms[] | select(.domain == $d) | describe($v)))
+      else
+        ($query | normalized) as $needle |
+        .terms[] | select(any(([.id] + .aliases)[]; normalized == $needle)) |
+        describe($v)
+      end
+    else
+      ($query | ascii_downcase) as $needle |
+      ($query | normalized) as $key |
+      .terms[] |
+      select(
+        any(([.id, (.id | gsub("_"; " ")), .domain, .definition, .example] + .aliases)[];
+            ascii_downcase | contains($needle))
+        or ($key != "" and any(([.id] + .aliases)[]; normalized | contains($key)))
+      ) |
+      "\(.id) — \(.definition)"
+    end
+  ' "$vocab"); then
+    echo 'color: cannot read installed vocabulary; run color update or reinstall' >&2
+    return 1
+  fi
+  if [ -z "$result" ]; then
+    if [ "$mode" = man ]; then
+      printf 'color man: unknown term "%s"; try color search\n' "$query" >&2
+    else
+      printf 'color search: no matches for "%s"\n' "$query" >&2
+    fi
+    return 1
+  fi
+  printf '%s\n' "$result"
 }
 
 # Stage the entire existing runtime on the same filesystem. The live copy is

@@ -36,7 +36,7 @@ symlinks, move the runtime anywhere, and it still works.
 
 ## Minimal management CLI
 
-After a one-time normal install from a trusted Git checkout, `color update` fetches that checkout's `origin/main`, stages the existing runtime, runs the existing installer and validator on the candidate, then replaces the live runtime and reloads the calling shell. The prior runtime is retained inside a sibling `.color-backup.*/runtime` directory. A per-runtime update lock rejects overlapping updates; normal failures and catchable signals attempt to restore the prior runtime. A hard kill or power loss during replacement may require manual recovery from the retained backup; a stale lock is deliberately not removed automatically. The source checkout is not modified (only Git fetch metadata changes). The runtime-only update preserves role data, personal aliases, shell startup files and Nano settings; shipped runtime policy and code are refreshed. External schema/law overrides and symlinks inside the runtime are rejected. Git is required for update only. Use `color help`, `color version`, `color list`, and `color validate` for the other commands. Other CLI features remain deferred in GitHub issues.
+After a one-time normal install from a trusted Git checkout, `color update` fetches that checkout's `origin/main`, stages the existing runtime, runs the existing installer and validator on the candidate, then replaces the live runtime and reloads the calling shell. The prior runtime is retained inside a sibling `.color-backup.*/runtime` directory. A per-runtime update lock rejects overlapping updates; normal failures and catchable signals attempt to restore the prior runtime. A hard kill or power loss during replacement may require manual recovery from the retained backup; a stale lock is deliberately not removed automatically. The source checkout is not modified (only Git fetch metadata changes). The runtime-only update preserves role data, personal aliases, shell startup files and Nano settings; shipped runtime policy and code are refreshed. External schema/law overrides and symlinks inside the runtime are rejected. Git is required for update only. Use `color help`, `color version`, `color list`, and `color validate` for the other commands. Other CLI features beyond those documented here remain deferred in GitHub issues.
 
 ## Commands
 
@@ -66,6 +66,8 @@ the write is committed. A rejected colour leaves your schema byte-identical.
 ## Technical vocabulary
 
 See [Vocabulary library](docs/VOCABULARY.md) and its [canonical JSON](docs/vocabulary.json) for definitions, examples, existing hierarchy meanings and concept relationships. Vocabulary is independent of color registration.
+
+Use `color man` for the complete grouped reference, `color man file` for a definition and example, `color man symlink` for alias lookup, or `color search 'regular file'` to discover matching concepts. Lookup ignores case and separators in canonical IDs and aliases; search matches names, aliases, domains, definitions and examples. Quote multiword terms and keywords. Unknown terms and searches without matches return nonzero; invalid arguments return status 2. Role associations come from the canonical reference mapping, not live custom role registration. These read-only commands use the installed `vocabulary.json`, refreshed by the normal installer or `color update`; they do not require a checkout or the system `man` program.
 
 ## Policy
 
