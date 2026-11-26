@@ -3,17 +3,23 @@
 color() {
   local sub="${1:-help}"
   if [ "$#" -gt 0 ]; then shift; fi
-  if [ "$#" -ne 0 ]; then
+  if [ "$sub" = restore ]; then
+    if [ "$#" -ne 1 ]; then
+      printf 'Usage: color restore <backup-runtime-path>\n' >&2
+      return 2
+    fi
+  elif [ "$#" -ne 0 ]; then
     printf 'color: unexpected arguments; see color help\n' >&2
     return 2
   fi
   case "$sub" in
-    help|-h|--help) printf '%s\n' 'Usage: color {update|help|version|list|validate}' ;;
+    help|-h|--help) printf '%s\n' 'Usage: color {update|backup|restore <backup-runtime-path>|help|version|list|validate}' ;;
     version) cat "$COLOR_RUNTIME_HOME/.version" ;;
     list) color_roles ;;
     validate) color_validate ;;
-    update)
-      __color_update_runtime || return
+    backup) __color_runtime_transaction backup ;;
+    update|restore)
+      __color_runtime_transaction "$sub" "$@" || return
       # Reload in the calling shell, not a child.
       # shellcheck source=/dev/null
       . "$COLOR_RUNTIME_HOME/colors.source.sh" &&
@@ -25,24 +31,24 @@ color() {
 
 # Stage the entire existing runtime on the same filesystem. The live copy is
 # untouched until the candidate installer and validation both succeed.
-__color_update_runtime() (
+__color_runtime_transaction() (
   set -euo pipefail
-  local rt repo work='' stage backup='' revision version lock committed=false
+  local op="$1" snapshot="${2:-}" rt repo work='' stage backup='' revision version lock committed=false
+  local backup_dir digest expected nonregular prior_valid=false
   rt="$COLOR_RUNTIME_HOME"
   [ -d "$rt" ] && [ ! -L "$rt" ] && [ "$(readlink -f "$rt")" = "$rt" ] ||
-    { echo 'color update: runtime must be a real absolute directory' >&2; return 1; }
+    { echo 'color: runtime must be a real absolute directory' >&2; return 1; }
   [ "${COLOR_ROLE_SCHEMA_PATH:-}" = "$rt/color_roles.json" ] &&
     [ "${COLOR_LAWS_PATH:-}" = "$rt/laws/color/color-laws.json" ] ||
-    { echo 'color update: external schema/law paths are not supported' >&2; return 1; }
-  [ -r "$rt/.update-repo" ] || { echo 'color update: run install.sh once from your trusted Git checkout' >&2; return 1; }
-  IFS= read -r repo < "$rt/.update-repo"
-  [ "$(git -C "$repo" rev-parse --show-toplevel)" = "$repo" ] ||
-    { echo 'color update: configured checkout is unavailable' >&2; return 1; }
-  # A symlink in the runtime could cause a staged write outside the snapshot.
-  [ -z "$(find "$rt" -type l -print -quit)" ] ||
-    { echo 'color update: symlink inside runtime; refusing to update' >&2; return 1; }
+    { echo 'color: external schema/law paths are not supported' >&2; return 1; }
+  if [ "$op" = update ]; then
+    [ -r "$rt/.update-repo" ] || { echo 'color update: run install.sh once from your trusted Git checkout' >&2; return 1; }
+    IFS= read -r repo < "$rt/.update-repo"
+    [ "$(git -C "$repo" rev-parse --show-toplevel)" = "$repo" ] ||
+      { echo 'color update: configured checkout is unavailable' >&2; return 1; }
+  fi
   lock="$rt.update-lock"
-  mkdir -- "$lock" || { echo 'color update: another update or interrupted update owns the lock' >&2; return 1; }
+  mkdir -- "$lock" || { echo 'color: another runtime transaction or interrupted transaction owns the lock' >&2; return 1; }
   # Restore the prior runtime on normal failure or catchable interruption.
   # Keep the backup and lock if recovery itself fails.
   # Invoked indirectly by the EXIT trap below.
@@ -55,8 +61,10 @@ __color_update_runtime() (
         mv -- "$rt" "$work/rejected" || { printf 'RECOVERY REQUIRED: prior runtime at %s\n' "$backup" >&2; exit 2; }
       fi
       mv -- "$backup" "$rt" || { printf 'RECOVERY REQUIRED: restore %s to %s\n' "$backup" "$rt" >&2; exit 2; }
-      "$rt/validate_color_roles.sh" "$rt/color_roles.json" "$rt/laws/color/color-laws.json" >/dev/null ||
-        { echo 'RECOVERY REQUIRED: restored runtime did not validate' >&2; exit 2; }
+      if $prior_valid; then
+        "$rt/validate_color_roles.sh" "$rt/color_roles.json" "$rt/laws/color/color-laws.json" >/dev/null ||
+          { echo 'RECOVERY REQUIRED: restored runtime did not validate' >&2; exit 2; }
+      fi
     fi
     if [ -n "$work" ]; then rm -rf -- "$work"; fi
     rmdir -- "$lock"
@@ -66,27 +74,79 @@ __color_update_runtime() (
   trap 'exit 130' INT
   trap 'exit 143' TERM
   trap 'exit 129' HUP
-  color_validate || return 1
+  # Check after acquiring the lock; symlinks or special files make a
+  # snapshot unsafe. A failed inventory is not an empty inventory.
+  nonregular=$(find "$rt" ! -type f ! -type d -print -quit) || return 1
+  [ -z "$nonregular" ] ||
+    { echo "color $op: nonregular entry inside runtime; refusing to proceed" >&2; return 1; }
+  if [ "$op" != update ]; then
+    # Missing/legacy policy would silently select validator defaults.
+    jq -e 'type == "object" and (.schema_version | type == "number" and . >= 2)' \
+      "$COLOR_LAWS_PATH" >/dev/null || return 1
+  fi
+  if [ "$op" = restore ]; then
+    # An invalid live role file is a legitimate reason to restore.
+    if color_validate >/dev/null 2>&1; then prior_valid=true; fi
+  elif [ "$op" = backup ]; then
+    color_validate >/dev/null || return 1
+    prior_valid=true
+  else
+    color_validate || return 1
+    prior_valid=true
+  fi
   work=$(mktemp -d "$(dirname "$rt")/.color-update.XXXXXXXX") || return 1
   stage="$work/runtime"
   cp -a -- "$rt" "$stage" || return 1
   diff -qr -- "$rt" "$stage" || return 1
-  git -C "$repo" fetch origin refs/heads/main || return 1
-  revision=$(git -C "$repo" rev-parse --verify 'FETCH_HEAD^{commit}') || return 1
-  mkdir "$work/source"
-  git -C "$repo" archive "$revision" | tar -xf - -C "$work/source" || return 1
-  version=$(bash "$work/source/install.sh" --version) || return 1
-  if [ -r "$rt/.update-revision" ] && [ "$(cat "$rt/.update-revision")" = "$revision" ]; then
-    printf 'Color %s is already current.\n' "$(cat "$rt/.version")"
+  if [ "$op" = backup ]; then
+    # Same retained-runtime layout used by update. Verify the copied roles
+    # with the installed validator and record their checksum, not a second
+    # archive format. No live files are changed.
+    "$rt/validate_color_roles.sh" "$stage/color_roles.json" "$COLOR_LAWS_PATH" >/dev/null || return 1
+    backup_dir=$(mktemp -d "$(dirname "$rt")/.color-backup.XXXXXXXX") || return 1
+    digest=$(sha256sum < "$stage/color_roles.json") || return 1
+    printf '%s\n' "${digest%% *}" > "$backup_dir/roles.sha256" || return 1
+    mv -- "$stage" "$backup_dir/runtime" || return 1
+    printf '%s\n' "$backup_dir/runtime"
     return 0
   fi
-  env -u COLOR_RUNTIME_HOME -u COLOR_ROLE_SCHEMA_PATH -u COLOR_LAWS_PATH \
-    bash "$work/source/install.sh" --runtime-only --runtime-dir "$stage" || return 1
-  cmp -s "$rt/color_roles.json" "$stage/color_roles.json" ||
-    { echo 'color update: role data changed; candidate rejected' >&2; return 1; }
-  "$stage/validate_color_roles.sh" "$stage/color_roles.json" "$stage/laws/color/color-laws.json" || return 1
-  printf '%s\n' "$revision" > "$stage/.update-revision"
-  local backup_dir
+  if [ "$op" = restore ]; then
+    # Restore only role data, never code, policy, cache or shell startup
+    # from an old snapshot. Accept only a real retained sibling runtime.
+    case "$snapshot" in
+      "$(dirname "$rt")"/.color-backup.*/runtime) ;;
+      *) echo 'color restore: expected a retained backup runtime path' >&2; return 1 ;;
+    esac
+    [ -d "$snapshot" ] && [ "$(readlink -f "$snapshot")" = "$snapshot" ] &&
+      [ "$(dirname "$(dirname "$snapshot")")" = "$(dirname "$rt")" ] &&
+      [ -f "$snapshot/color_roles.json" ] && [ ! -L "$snapshot/color_roles.json" ] ||
+      { echo 'color restore: invalid backup path or role file' >&2; return 1; }
+    cp -- "$snapshot/color_roles.json" "$stage/color_roles.json" || return 1
+    if [ -e "$(dirname "$snapshot")/roles.sha256" ] || [ -L "$(dirname "$snapshot")/roles.sha256" ]; then
+      [ -f "$(dirname "$snapshot")/roles.sha256" ] && [ ! -L "$(dirname "$snapshot")/roles.sha256" ] || return 1
+      IFS= read -r expected < "$(dirname "$snapshot")/roles.sha256" || return 1
+      digest=$(sha256sum < "$stage/color_roles.json") || return 1
+      [ "$expected" = "${digest%% *}" ] || { echo 'color restore: backup checksum mismatch' >&2; return 1; }
+    fi
+    "$rt/validate_color_roles.sh" "$stage/color_roles.json" "$COLOR_LAWS_PATH" || return 1
+    rm -f -- "$stage/cache/roles.sh" || return 1
+  else
+    git -C "$repo" fetch origin refs/heads/main || return 1
+    revision=$(git -C "$repo" rev-parse --verify 'FETCH_HEAD^{commit}') || return 1
+    mkdir "$work/source"
+    git -C "$repo" archive "$revision" | tar -xf - -C "$work/source" || return 1
+    version=$(bash "$work/source/install.sh" --version) || return 1
+    if [ -r "$rt/.update-revision" ] && [ "$(cat "$rt/.update-revision")" = "$revision" ]; then
+      printf 'Color %s is already current.\n' "$(cat "$rt/.version")"
+      return 0
+    fi
+    env -u COLOR_RUNTIME_HOME -u COLOR_ROLE_SCHEMA_PATH -u COLOR_LAWS_PATH \
+      bash "$work/source/install.sh" --runtime-only --runtime-dir "$stage" || return 1
+    cmp -s "$rt/color_roles.json" "$stage/color_roles.json" ||
+      { echo 'color update: role data changed; candidate rejected' >&2; return 1; }
+    "$stage/validate_color_roles.sh" "$stage/color_roles.json" "$stage/laws/color/color-laws.json" || return 1
+    printf '%s\n' "$revision" > "$stage/.update-revision"
+  fi
   backup_dir=$(mktemp -d "$(dirname "$rt")/.color-backup.XXXXXXXX") || return 1
   backup="$backup_dir/runtime"
   mv -- "$rt" "$backup" || return 1
@@ -97,5 +157,9 @@ __color_update_runtime() (
     return 1
   fi
   committed=true
-  printf 'Color %s installed. Previous runtime: %s\n' "$version" "$backup"
+  if [ "$op" = restore ]; then
+    printf 'Color roles restored. Previous runtime: %s\n' "$backup"
+  else
+    printf 'Color %s installed. Previous runtime: %s\n' "$version" "$backup"
+  fi
 )
