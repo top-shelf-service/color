@@ -157,6 +157,8 @@ __color_aliases() {
   fi
   for name in "${names[@]}"; do
     if [[ -n "${available[$name]+x}" ]]; then
+      # Expand the catalog value now, without evaluating its literal contents.
+      # shellcheck disable=SC2139
       builtin alias "$name=${desired[$name]}" || return
       [ "$mode" = startup ] || printf 'ADDED %s to current shell\n' "$name"
     fi

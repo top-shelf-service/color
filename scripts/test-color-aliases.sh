@@ -9,6 +9,8 @@ unset COLOR_RUNTIME_HOME COLOR_ROLE_SCHEMA_PATH COLOR_LAWS_PATH
 export XDG_DATA_HOME="$HOME/.local/share"
 # Use a personal alias with a conflicting name, a custom alias, and code
 # which would create a sentinel if anyone sourced the file during inspection.
+# Literal shell code is the nonexecution sentinel, not an expression.
+# shellcheck disable=SC2016
 printf "%s\n" "alias colorroles='echo personal'" "alias mine='echo keep'" 'touch "$HOME/evaluated"' > "$HOME/.bash_aliases"
 cp "$HOME/.bash_aliases" "$work/original"
 bash "$repo/install.sh" --skip-nano --no-prompt >/dev/null
@@ -28,14 +30,17 @@ grep -Fq 'CONFLICT colorroles' "$work/update"
 [ -d "$rt/aliases.enabled" ]
 [ "$(alias colorroles)" = "alias colorroles='echo personal'" ]
 [ "$(alias mine)" = "alias mine='echo keep'" ]
+# Compare the shipped literal, including its unexpanded variable references.
+# shellcheck disable=SC2016
 [ "$(alias colorreload)" = 'alias colorreload='\''source "${COLOR_RUNTIME_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/tss/color}/colors.source.sh"'\''' ]
 alias colortest >/dev/null
 color aliases update > "$work/repeat" 2>&1
-! grep -q 'ADDED' "$work/repeat"
+if grep -q 'ADDED' "$work/repeat"; then echo "Repeated update added aliases" >&2; exit 1; fi
 cmp "$work/original" "$HOME/.bash_aliases"
 [ ! -e "$HOME/evaluated" ]
 # Verify the real managed hook, after the normal personal source.
 bash --noprofile --norc -c '
+  set -e
   . "$HOME/.bashrc"
   [ "$(alias colorroles)" = "alias colorroles='\''echo personal'\''" ]
   [ "$(alias mine)" = "alias mine='\''echo keep'\''" ]
