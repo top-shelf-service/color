@@ -1,5 +1,5 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.2",
   "scope": "Core technical vocabulary for Color: Linux/Bash, source code, data, Git, runtime, network, delivery, security and observability. Not an exhaustive dictionary of computing; no colors or new runtime roles are assigned.",
   "classification": {
     "fields": {
@@ -83,7 +83,9 @@
     "programming-parameter": "https://developer.mozilla.org/en-US/docs/Glossary/Parameter",
     "runtime-bind": "https://docs.docker.com/engine/storage/bind-mounts/",
     "network-ipv6": "https://www.rfc-editor.org/rfc/rfc8200.html",
-    "network-addressing": "https://www.rfc-editor.org/info/rfc4291/"
+    "network-addressing": "https://www.rfc-editor.org/info/rfc4291/",
+    "data-pg-constraints": "https://www.postgresql.org/docs/current/ddl-constraints.html",
+    "data-pg-rollback": "https://www.postgresql.org/docs/current/sql-rollback.html"
   },
   "domains": [
     {
@@ -123,7 +125,9 @@
       "reference_ids": [
         "data-1",
         "data-2",
-        "data-pg-schema"
+        "data-pg-schema",
+        "data-pg-constraints",
+        "data-pg-rollback"
       ]
     },
     {
@@ -305,8 +309,8 @@
     {
       "id": "executable",
       "domain": "filesystem",
-      "definition": "Attribute indicating permission to attempt execution, not a file format.",
-      "example": "chmod +x script.sh",
+      "definition": "In this filesystem vocabulary, a file with execute permission; the permission does not guarantee that execution will succeed.",
+      "example": "test -x script.sh",
       "aliases": []
     },
     {
@@ -984,7 +988,7 @@
     {
       "id": "primary_key",
       "domain": "data",
-      "definition": "Column or columns uniquely identifying rows and disallowing nulls.",
+      "definition": "Database constraint that identifies each row uniquely using one or more non-null columns.",
       "example": "PRIMARY KEY (id)",
       "aliases": [
         "PK"
@@ -1030,7 +1034,7 @@
     {
       "id": "rollback",
       "domain": "data",
-      "definition": "Undo uncommitted transaction changes; in deployment, restore an earlier state.",
+      "definition": "In SQL, abort the current transaction and discard its uncommitted changes.",
       "example": "ROLLBACK",
       "aliases": []
     },
@@ -2068,7 +2072,7 @@
     {
       "id": "error",
       "domain": "observability",
-      "definition": "Observed failure or invalid condition.",
+      "definition": "A detected problem or invalid condition that may be handled without necessarily ending the operation.",
       "example": "permission denied",
       "aliases": []
     },
@@ -2089,8 +2093,8 @@
     {
       "id": "failure",
       "domain": "observability",
-      "definition": "Operation did not meet its stated success condition.",
-      "example": "assertion failed",
+      "definition": "An operation's outcome when it does not meet its stated success condition.",
+      "example": "a test exits unsuccessfully",
       "aliases": []
     },
     {
