@@ -40,6 +40,8 @@ After a one-time normal install from a trusted Git checkout, `color update` fetc
 
 **Configuration recovery:** `backup=$(color backup)` creates a verified sibling `.color-backup.*/runtime` snapshot and prints its absolute path. `color restore "$backup"` restores only `color_roles.json`, validated against the current installed policy; it does not downgrade runtime code, policy or version, restore aliases, or copy the old cache. The calling shell reloads after a successful restore. Explicit backups include a role-file SHA-256 checksum; older update snapshots without that checksum are accepted based on current policy validation, not byte-integrity proof. Restore rejects invalid input before promotion and keeps the previous runtime in a retained snapshot. Both commands share the update lock and staged promotion/rollback path. Keep the printed path, and do not edit backup files. Backups are local snapshots, not off-device disaster recovery. If the loader/runtime itself is missing or the lock is stale after a hard kill/power loss, manual recovery from a trusted retained runtime or reinstall is required; these shell commands do not bypass the lock. Do not run the standalone registration hook or other out-of-band runtime edits during update/backup/restore; those operations are not coordinated by this lock.
 
+**Diagnostics and repair:** `color doctor` observes the installed runtime without creating a lock, rebuilding or sourcing the cache, or changing files. It returns 0 for healthy on-disk checks, 3 for a missing/stale generated cache, or 1 for unknown/unsafe conditions. Health means required files are present, shell syntax checks and role policy validation pass, and the cache matches its source; it does not attest code provenance, in-memory palette freshness, or shell startup integrity. `color doctor --fix` and `color reload` acquire the existing update/restore lock, validate before repair, rebuild only the generated cache when necessary, and reload the caller from the verified cache snapshot. Neither rewrites roles, policy, aliases or startup files. Missing managed code, invalid policy/roles, unsafe paths and a held or stale lock require manual investigation; no automatic reinstall or lock removal. If the loader is missing in a fresh shell, the command itself may be unavailable. Do not run the standalone hook or edit the runtime concurrently with any management transaction. Read-only diagnosis is observational, not a lock-held integrity snapshot.
+
 ## Commands
 
 | Command | Does |
@@ -49,7 +51,8 @@ After a one-time normal install from a trusted Git checkout, `color update` fetc
 | `color_roles` / `colorroles` | List every role with a colour sample |
 | `colortest` | Print one sample per common role |
 | `color_validate` | Check the live schema against the policy |
-| `color_reload` | Rebuild the cache after editing the schema |
+| `color doctor [--fix]` | Diagnose without writes; optionally repair the generated cache and reload |
+| `color reload` / `color_reload` | Validate, repair cache if necessary, and reload the calling shell |
 | `validate_color_roles.sh --emit-constraints` | Print the colour policy as shell assignments |
 | `color_doctor` | Print resolved paths, versions and `COLOR_*` env — start here if something looks wrong |
 | `install_hook.sh <role> <category> <hierarchy>` | Register a new role |

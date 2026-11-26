@@ -5,6 +5,18 @@ color() {
   if [ "$#" -gt 0 ]; then shift; fi
   case "$sub" in
     man|search) __color_vocabulary "$sub" "$@"; return ;;
+    doctor)
+      if [ "$#" -eq 0 ]; then
+        __color_diagnose || return
+        color_doctor
+      elif [ "$#" -eq 1 ] && [ "$1" = --fix ]; then
+        __color_repair_reload
+      else
+        printf 'Usage: color doctor [--fix]\n' >&2
+        return 2
+      fi
+      return ;;
+
   esac
   if [ "$sub" = restore ]; then
     if [ "$#" -ne 1 ]; then
@@ -16,11 +28,12 @@ color() {
     return 2
   fi
   case "$sub" in
-    help|-h|--help) printf '%s\n' 'Usage: color {update|backup|restore <backup-runtime-path>|help|version|list|validate}' '       color man [term]' '       color search <keyword>' ;;
+    help|-h|--help) printf '%s\n' 'Usage: color {update|backup|restore <backup-runtime-path>|help|version|list|validate}' '       color man [term]' '       color search <keyword>' '       color doctor [--fix]' '       color reload' ;;
     version) cat "$COLOR_RUNTIME_HOME/.version" ;;
     list) color_roles ;;
     validate) color_validate ;;
     backup) __color_runtime_transaction backup ;;
+    reload) __color_repair_reload ;;
     update|restore)
       __color_runtime_transaction "$sub" "$@" || return
       # Reload in the calling shell, not a child.
@@ -99,6 +112,106 @@ __color_vocabulary() {
   printf '%s\n' "$result"
 }
 
+# Read-only, observational diagnosis. Status 3 means only the generated
+# cache needs repair; status 1 means repair is not known to be safe.
+# Never source the cache or run the loader during diagnosis.
+__color_diagnose() {
+  local mode="${1:-observe}" verbosity="${2:-verbose}" rt="$COLOR_RUNTIME_HOME" lock f nonregular expected rc=0
+  lock="$rt.update-lock"
+  if [ "$mode" != locked ] && { [ -e "$lock" ] || [ -L "$lock" ]; }; then
+    echo 'color doctor: UNKNOWN: transaction lock present; if interrupted, recover manually' >&2
+    return 1
+  fi
+  if ! [ -d "$rt" ] || [ -L "$rt" ] || [ "$(readlink -f "$rt")" != "$rt" ]; then
+    echo 'color doctor: UNKNOWN: runtime missing or not a real absolute directory; manual recovery required' >&2
+    return 1
+  fi
+  if [ "${COLOR_ROLE_SCHEMA_PATH:-}" != "$rt/color_roles.json" ] ||
+     [ "${COLOR_LAWS_PATH:-}" != "$rt/laws/color/color-laws.json" ] ||
+     [ "${COLOR_CACHE_FILE:-}" != "$rt/cache/roles.sh" ]; then
+    echo 'color doctor: UNKNOWN: external runtime paths; refusing repair' >&2
+    return 1
+  fi
+  nonregular=$(find "$rt" ! -type f ! -type d -print -quit) || return 1
+  if [ -n "$nonregular" ]; then
+    echo 'color doctor: UNKNOWN: nonregular runtime entry; manual inspection required' >&2
+    return 1
+  fi
+  if ! command -v jq >/dev/null 2>&1; then
+    echo 'color doctor: UNKNOWN: jq unavailable' >&2
+    return 1
+  fi
+  for f in color_roles.json laws/color/color-laws.json colors.source.sh \
+           color-cli.sh install_hook.sh validate_color_roles.sh vocabulary.json .version; do
+    if ! [ -f "$rt/$f" ] || ! [ -r "$rt/$f" ] || ! [ -s "$rt/$f" ]; then
+      printf 'color doctor: UNKNOWN: missing, empty or unreadable %s; manual recovery required\n' "$f" >&2
+      return 1
+    fi
+  done
+  if ! [ -x "$rt/validate_color_roles.sh" ] || ! [ -x "$rt/install_hook.sh" ]; then
+    echo 'color doctor: UNKNOWN: managed executable missing permission; manual recovery required' >&2
+    return 1
+  fi
+  for f in colors.source.sh color-cli.sh install_hook.sh validate_color_roles.sh; do
+    if ! bash -n "$rt/$f"; then
+      printf 'color doctor: UNKNOWN: invalid shell syntax in %s; manual recovery required\n' "$f" >&2
+      return 1
+    fi
+  done
+  if ! jq -e 'type == "object" and (.schema_version | type == "number" and . >= 2)' \
+       "$COLOR_LAWS_PATH" >/dev/null ||
+     ! jq -e 'type == "object" and (.terms | type == "array" and length > 0)
+       and (.domains | type == "array" and length > 0)
+       and (.classification.role_to_term | type == "object")' "$rt/vocabulary.json" >/dev/null ||
+     ! color_validate >/dev/null; then
+    echo 'color doctor: UNKNOWN: policy, role or vocabulary validation failed; manual recovery required' >&2
+    return 1
+  fi
+  if { [ -e "$rt/cache" ] && ! [ -d "$rt/cache" ]; } ||
+     { [ -e "$COLOR_CACHE_FILE" ] && { ! [ -f "$COLOR_CACHE_FILE" ] || ! [ -r "$COLOR_CACHE_FILE" ]; }; }; then
+    echo 'color doctor: UNKNOWN: unsafe cache layout or unreadable cache' >&2
+    return 1
+  fi
+  expected=$(__color_emit_cache) || {
+    echo 'color doctor: UNKNOWN: cannot generate expected cache bytes' >&2
+    return 1
+  }
+  if [ ! -f "$COLOR_CACHE_FILE" ]; then
+    rc=3
+  else
+    cmp -s "$COLOR_CACHE_FILE" <(printf '%s\n' "$expected") || rc=$?
+    case "$rc" in
+      0) if [ "$COLOR_ROLE_SCHEMA_PATH" -nt "$COLOR_CACHE_FILE" ]; then rc=3; fi ;;
+      1) rc=3 ;;
+      *) echo 'color doctor: UNKNOWN: cache comparison failed' >&2; return 1 ;;
+    esac
+  fi
+  if [ "$mode" != locked ] && { [ -e "$lock" ] || [ -L "$lock" ]; }; then
+    echo 'color doctor: UNKNOWN: runtime transaction in progress' >&2
+    return 1
+  fi
+  if [ "$rc" -eq 3 ]; then
+    if [ "$verbosity" != quiet ]; then
+      echo 'color doctor: REPAIRABLE: generated role cache missing or stale; run color doctor --fix' >&2
+    fi
+    return 3
+  fi
+  if [ "$verbosity" != quiet ]; then
+    echo 'color doctor: HEALTHY: required files present, policy valid, cache current (not a code-integrity attestation)'
+  fi
+}
+
+# A verified cache snapshot is returned under the existing transaction lock.
+# Reload the calling shell from those bytes without a second disk mutation.
+__color_repair_reload() {
+  local snapshot verbosity="${1:-verbose}"
+  snapshot=$(__color_runtime_transaction repair "$verbosity") || return 1
+  __color_read_cache /dev/stdin <<< "$snapshot" || return 1
+  if [ "$verbosity" != quiet ]; then
+    echo 'Color cache verified; calling shell reloaded.'
+  fi
+}
+
 # Stage the entire existing runtime on the same filesystem. The live copy is
 # untouched until the candidate installer and validation both succeed.
 __color_runtime_transaction() (
@@ -144,6 +257,20 @@ __color_runtime_transaction() (
   trap 'exit 130' INT
   trap 'exit 143' TERM
   trap 'exit 129' HUP
+  if [ "$op" = repair ]; then
+    local diagnosis=0
+    __color_diagnose locked "$snapshot" >&2 || diagnosis=$?
+    case "$diagnosis" in
+      0) ;;
+      3)
+        __color_compile_cache || { echo 'color doctor: cache repair failed' >&2; return 1; }
+        __color_diagnose locked "$snapshot" >&2 || return 1
+        ;;
+      *) return 1 ;;
+    esac
+    cat -- "$COLOR_CACHE_FILE"
+    return
+  fi
   # Check after acquiring the lock; symlinks or special files make a
   # snapshot unsafe. A failed inventory is not an empty inventory.
   nonregular=$(find "$rt" ! -type f ! -type d -print -quit) || return 1
