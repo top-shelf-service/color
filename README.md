@@ -96,6 +96,20 @@ Color identifies an object's semantic role. Classification suffixes (such as `*`
 
 Use `color_ls` or `color_ls ~/color` for the managed GNU `ls -alF` view. It accepts paths, not options, and uses the existing schema without modifying ambient `LS_COLORS`. It deliberately leaves native `ls` aliases and metadata unchanged; pipes and `NO_COLOR` or `TERM=dumb` remain plain. Native `ls` remains available for other options. No new roles are required.
 
+### Visual hierarchy: identity and attention (C05)
+
+The existing role is the source of foreground color. The accepted [vocabulary](docs/vocabulary.json) defines what concepts mean; it does not automatically create roles or assign colors. Existing hierarchy values retain their meanings. They are classification labels, not a numeric brightness scale or a requirement that all members share one hue.
+
+For the first enhancement, use one additional visual distinction in the existing `color_apply` text renderer: the `alert` and `feedback` hierarchies receive bold emphasis (SGR 1) in addition to their existing foreground RGB color. Other hierarchies retain normal text weight. This separates operational signals from ordinary object identities, including warnings from JavaScript and success from Node.js, without changing any accepted hex value. The hierarchy comes from the existing role schema; do not add a per-role style field, new hierarchy value, mandatory color-distance threshold or separate palette. Do not imply that bold increases the measured WCAG contrast ratio.
+
+| Positive example | Negative / contrast example |
+|---|---|
+| `color_apply warnings "[WARNING] retry needed"` uses the warning role RGB and bold. | `color_apply javascript "app.js"` uses its own RGB without added bold. |
+| `color_apply success "[SUCCESS] validation passed"` uses the success role RGB and bold. | `color_apply nodejs "node"` uses the Node.js role RGB without added bold. |
+| `color_apply errors "[ERROR] operation failed"` uses the error role RGB and bold. | A normal file, directory, link, script or language does not acquire alert emphasis merely because its hue is similar. |
+
+C06 implementation contract: derive emphasis from the installed hierarchy using the existing loader/cache, keep the current role foreground bytes unchanged, reset style after the text, and preserve plain redirected output and unknown-role fallback. Verify a newly registered alert role also receives the same emphasis; verify non-alert roles, adjacent text after reset, and the existing filesystem suffix renderer are unaffected. Use the current contrast floor and existing validator; do not add a new color-law engine. Keep explicit message text meaningful even without color. This section specifies intended behavior, not functionality already shipped in 3.1.2.
+
 ## Installer flags
 
 ```
