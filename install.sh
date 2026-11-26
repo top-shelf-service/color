@@ -21,7 +21,7 @@
 
 set -euo pipefail
 
-VERSION="3.2.0"
+VERSION="3.3.0"
 
 GREEN='\033[0;32m'; RED='\033[0;31m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'; NC='\033[0m'
 info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
@@ -50,6 +50,7 @@ SKIP_ALIASES=false
 SKIP_NANO=false
 INSTALL_PROMPT=true
 STRICT=false
+RUNTIME_ONLY=false
 
 usage() {
   cat <<USAGE
@@ -61,6 +62,7 @@ Usage: $0 [OPTIONS]
   -f, --force           Replace user data (color_roles.json, .bash_aliases).
                         Code files are always refreshed regardless.
   -b, --backup          Back up any file replaced by --force.
+      --runtime-only    Refresh an existing staged runtime; do not touch shell files.
       --skip-aliases    Do not install ~/.bash_aliases.
       --skip-nano       Do not install nano TS/TSX syntax files.
       --no-prompt       Leave PS1 alone.
@@ -78,6 +80,7 @@ while [ $# -gt 0 ]; do
     --runtime-dir) [ $# -ge 2 ] || { error "--runtime-dir requires a path"; exit 2; }; RUNTIME_DIR="$2"; shift 2 ;;
     -f|--force)    FORCE=true; shift ;;
     -b|--backup)   BACKUP=true; shift ;;
+    --runtime-only) RUNTIME_ONLY=true; shift ;;
     --skip-aliases) SKIP_ALIASES=true; shift ;;
     --skip-nano)   SKIP_NANO=true; shift ;;
     --no-prompt)   INSTALL_PROMPT=false; shift ;;
@@ -145,10 +148,17 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 command -v nano >/dev/null 2>&1 || $SKIP_NANO || warn "nano not found; syntax files will still be installed."
 
+if $RUNTIME_ONLY; then
+  if [ ! -f "$RUNTIME_DIR/color_roles.json" ] || $FORCE; then
+    error "--runtime-only requires an existing runtime and forbids --force."
+    exit 2
+  fi
+fi
+
 # ------------------------------------------------- migrate legacy layout ----
 # A real directory at ~/ctl_environment from a pre-3.0 install is moved into
 # the runtime once, preserving any roles the user registered.
-if [ -d "$LEGACY_DIR" ] && [ ! -L "$LEGACY_DIR" ]; then
+if ! $RUNTIME_ONLY && [ -d "$LEGACY_DIR" ] && [ ! -L "$LEGACY_DIR" ]; then
   if [ "$LEGACY_DIR" != "$RUNTIME_DIR" ]; then
     mkdir -p "$(dirname "$RUNTIME_DIR")"
     if [ -e "$RUNTIME_DIR" ]; then
@@ -172,11 +182,17 @@ install_code "$TEMPLATE_DIR/laws/color/color-laws.json.template"   "$RUNTIME_DIR
 install_code "$TEMPLATE_DIR/colors.source.sh.template"            "$RUNTIME_DIR/colors.source.sh"
 install_code "$TEMPLATE_DIR/install_hook.sh.template"             "$RUNTIME_DIR/install_hook.sh" 755
 install_code "$REPO_ROOT/validate_color_roles.sh"                 "$RUNTIME_DIR/validate_color_roles.sh" 755
+install_code "$TEMPLATE_DIR/color-cli.sh.template"                "$RUNTIME_DIR/color-cli.sh"
 
 # Invalidate the compiled cache so the next shell recompiles from the schema.
 rm -f "$RUNTIME_DIR/cache/roles.sh"
 echo "$VERSION" > "$RUNTIME_DIR/.version"
 
+if ! $RUNTIME_ONLY; then
+# Record the actual checkout once; runtime-only archives retain this file.
+if command -v git >/dev/null 2>&1 && [ "$(git -C "$REPO_ROOT" rev-parse --show-toplevel 2>/dev/null || true)" = "$REPO_ROOT" ]; then
+  printf '%s\n' "$REPO_ROOT" > "$RUNTIME_DIR/.update-repo"
+fi
 # --------------------------------------------------- compatibility links ----
 # These are conveniences only. The loader is self-locating and works without
 # them; nothing in the runtime resolves through these paths.
@@ -242,6 +258,7 @@ fi
   echo "$END_MARK"
 } >> "$BASHRC"
 success "Managed block written to .bashrc"
+fi
 
 # --------------------------------------------------------------- enforce ----
 info "Enforcing colour policy..."
@@ -260,16 +277,18 @@ fi
 # ---------------------------------------------------------------- verify ----
 fail=0
 for f in color_roles.json laws/color/color-laws.json colors.source.sh \
-         install_hook.sh validate_color_roles.sh .version; do
+         install_hook.sh validate_color_roles.sh color-cli.sh .version; do
   [ -e "$RUNTIME_DIR/$f" ] || { error "Missing after install: $RUNTIME_DIR/$f"; fail=1; }
 done
 for f in install_hook.sh validate_color_roles.sh; do
   [ -x "$RUNTIME_DIR/$f" ] || { error "Not executable: $RUNTIME_DIR/$f"; fail=1; }
 done
-grep -Fq "$BEGIN_MARK" "$BASHRC" || { error "Managed block missing from .bashrc"; fail=1; }
+if ! $RUNTIME_ONLY; then
+  grep -Fq "$BEGIN_MARK" "$BASHRC" || { error "Managed block missing from .bashrc"; fail=1; }
+fi
 
 # Prove the loader works standalone, with no symlink and no COLOR_RUNTIME_HOME.
-if ! ( unset COLOR_RUNTIME_HOME
+if ! ( unset COLOR_RUNTIME_HOME COLOR_ROLE_SCHEMA_PATH COLOR_LAWS_PATH
        # shellcheck source=/dev/null  # path is the chosen runtime dir, not fixed
        . "$RUNTIME_DIR/colors.source.sh" >/dev/null 2>&1
        [ "${COLOR_SYSTEM_READY:-0}" -eq 1 ] && get_color_by_role prompt >/dev/null ); then

@@ -36,7 +36,8 @@ jobs:
         run: |
           shellcheck $(git ls-files '*.sh') \
                      ctl_environment_template/install_hook.sh.template \
-                     ctl_environment_template/colors.source.sh.template
+                     ctl_environment_template/colors.source.sh.template \
+                     ctl_environment_template/color-cli.sh.template
 
       - name: "Vocabulary: structural and compatibility checks"
         run: python3 scripts/check-vocabulary.py
@@ -156,6 +157,9 @@ jobs:
             ./install.sh >/dev/null
             python3 scripts/test-hierarchy-emphasis.py "$HOME/.local/share/tss/color/colors.source.sh"
           )
+
+      - name: "CLI: update and failure isolation"
+        run: bash scripts/test-color-update.sh
 
       - name: "Uninstall: leaves nothing behind, install works after"
         run: |

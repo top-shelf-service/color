@@ -31,7 +31,7 @@ else
   G='\033[0;32m'; R='\033[0;31m'; Y='\033[1;33m'; B='\033[0;34m'; DIM='\033[2m'; NC='\033[0m'
 fi
 
-TOTAL=38
+TOTAL=39
 n=0; pass=0; fail=0; skip=0
 declare -a FAILED=()
 START=$(date +%s)
@@ -350,6 +350,13 @@ if command -v python3 >/dev/null 2>&1; then
   t "hierarchy emphasis and plain fallback" c30
 else
   t_skip "hierarchy emphasis and plain fallback" "no python3 — test only"
+fi
+
+section "UPDATE CLI"
+if command -v git >/dev/null 2>&1; then
+  t "CLI update and failure isolation" bash scripts/test-color-update.sh
+else
+  t_skip "CLI update and failure isolation" "no git"
 fi
 
 # ----------------------------------------------------------------- summary --

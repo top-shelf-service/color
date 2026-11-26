@@ -7,7 +7,7 @@ colours are legal; the shell loader turns them into 24-bit ANSI.
 ## Install
 
 ```bash
-git clone https://github.com/peteywee/color.git
+git clone https://github.com/top-shelf-service/color.git
 cd color
 ./install.sh
 source ~/.bashrc
@@ -33,6 +33,10 @@ source ~/.bashrc
 
 The loader derives its runtime directory from its own path. Delete both compat
 symlinks, move the runtime anywhere, and it still works.
+
+## Minimal management CLI
+
+After a one-time normal install from a trusted Git checkout, `color update` fetches that checkout's `origin/main`, stages the existing runtime, runs the existing installer and validator on the candidate, then replaces the live runtime and reloads the calling shell. The prior runtime is retained inside a sibling `.color-backup.*/runtime` directory. A per-runtime update lock rejects overlapping updates; normal failures and catchable signals attempt to restore the prior runtime. A hard kill or power loss during replacement may require manual recovery from the retained backup; a stale lock is deliberately not removed automatically. The source checkout is not modified (only Git fetch metadata changes). The runtime-only update preserves role data, personal aliases, shell startup files and Nano settings; shipped runtime policy and code are refreshed. External schema/law overrides and symlinks inside the runtime are rejected. Git is required for update only. Use `color help`, `color version`, `color list`, and `color validate` for the other commands. Other CLI features remain deferred in GitHub issues.
 
 ## Commands
 
