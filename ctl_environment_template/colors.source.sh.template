@@ -82,9 +82,14 @@ __color_load() {
     __color_warn "schema not found at $COLOR_ROLE_SCHEMA_PATH — colours disabled"
     return 1
   fi
-  # Recompile only when the schema is newer than the cache.
+  # A staged or relocated runtime may contain a cache generated for its old path.
+  # Require the exact current schema header, not just the cache format version.
+  local cache_header=""
+  if [ -r "$COLOR_CACHE_FILE" ]; then
+    IFS= read -r cache_header < "$COLOR_CACHE_FILE" || cache_header=""
+  fi
   if [ ! -r "$COLOR_CACHE_FILE" ] || [ "$COLOR_ROLE_SCHEMA_PATH" -nt "$COLOR_CACHE_FILE" ] ||
-     ! grep -q "^# color-cache-v2:" "$COLOR_CACHE_FILE"; then
+     [ "$cache_header" != "# color-cache-v2: generated from $COLOR_ROLE_SCHEMA_PATH - do not edit" ]; then
     if ! __color_compile_cache; then
       if [ ! -r "$COLOR_CACHE_FILE" ]; then
         __color_warn "cannot compile role cache (is jq installed?) — colours disabled"
