@@ -30,7 +30,7 @@ CI now asserts this, so a regression fails the build.
 | `scripts/bootstrap/install_aliases.sh` | third alias installer, same name as a second one |
 | `README.mdy` | byte-identical duplicate of `README.md` |
 
-Flag equivalents are in the README's upgrade table.
+Flag equivalents are in the [reference guide's upgrade table](docs/REFERENCE.md#upgrading-from-2x).
 
 ## Behaviour changes
 
