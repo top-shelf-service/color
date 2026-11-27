@@ -175,6 +175,10 @@ git -C "$work/upstream" add install.sh docs/vocabulary.json
 git -C "$work/upstream" -c user.name=Test -c user.email=test@example.invalid commit -qm update
 color update
 [ "$(color version)" = 3.4.1 ]
+# A promoted staged cache must be regenerated for the live runtime path.
+color doctor > "$work/post-update-doctor"
+grep -Fq HEALTHY "$work/post-update-doctor"
+[ "$(head -n 1 "$rt/cache/roles.sh")" = "# color-cache-v2: generated from $rt/color_roles.json - do not edit" ]
 cmp "$work/updated-vocabulary" "$rt/vocabulary.json"
 cmp "$work/original-vocabulary" "$work/checkout/docs/vocabulary.json"
 color man file > "$work/updated-man"
